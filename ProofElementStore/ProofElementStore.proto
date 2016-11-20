@@ -1,0 +1,54 @@
+// Copyright (c) 2016 Skuchain,Inc
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+syntax ="proto3";
+
+
+message ProofElementStore{
+enum ProofType{
+  SECP =0;
+  SECPSHA =1;
+}
+ProofType type = 1;
+SECPProofElementStore secp = 2;
+SECPSHA2ProofElementStore secpsha =3;
+}
+
+message SECPProofElementStore {
+  enum ProofElementState {
+    Initialized =0;
+    Signed =1;
+    Revoked =2;
+    Superceded =3;
+  }
+  string name = 1;
+  ProofElementState state =2;
+  int32 threshold = 3;
+  string data =4;
+  repeated bytes PublicKeys =5;
+  repeated bytes Signatures =6;
+  string SupercededBy =7;
+}
+
+message SECPSHA2ProofElementStore {
+  enum ProofElementState {
+    Initialized =0;
+    Signed =1;
+    Revoked =2;
+    Superceded =3;
+  }
+  string name = 1;
+  ProofElementState state =2;
+  int32 threshold = 3;
+  string data =4;
+  repeated bytes PublicKeys =5;
+  repeated bytes Signatures =6;
+  repeated bytes Digests =7;
+  repeated bytes Preimages =8;
+  string supercededBy =9;
+}
