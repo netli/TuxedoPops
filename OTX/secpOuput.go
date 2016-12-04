@@ -8,7 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package ElementProof
+package OTX
 
 import (
 	"crypto/sha256"
@@ -19,37 +19,30 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
-	"github.com/skuchain/kevlar/ProofElementStore"
+	"github.com/skuchain/kevlar_utxo/Popcodes"
+	"github.com/skuchain/kevlar_utxo/ProofElementStore"
 )
 
-type SecP256k1ElementProof struct {
-	ProofName    string
-	State        SigState
-	Signatures   []btcec.Signature
-	PublicKeys   []btcec.PublicKey
-	SupercededBy string
-	Threshold    int
-	Data         string
+type SecP256k1Output struct {
+	Popcode   *Popcodes.Popcode
+	Owners    []btcec.PublicKey
+	OutputIdx int
+	Threshold int
+	Data      string
+	Amount    int
+	Creator   btcec.PublicKey
 }
 
 //PubKeys hello
-func (b *SecP256k1ElementProof) PubKeys() []string {
+func (b *SecP256k1Output) PubKeys() []string {
 	output := *new([]string)
-	for _, key := range b.PublicKeys {
+	for _, key := range b.Owners {
 		output = append(output, hex.EncodeToString(key.SerializeCompressed()))
 	}
 	return output
 }
 
-func (b *SecP256k1ElementProof) CurrentState() SigState {
-	return b.State
-}
-
-func (b *SecP256k1ElementProof) Name() string {
-	return b.ProofName
-}
-
-func (b *SecP256k1ElementProof) verifySigs(message string, signatures *[][]byte) (bool, []btcec.Signature) {
+func (b *SecP256k1Output) verifySigs(message string, signatures *[][]byte) (bool, []btcec.Signature) {
 	validSig := false
 	validatedSigs := *new([]btcec.Signature)
 	usedKeys := make([]bool, len(b.PublicKeys))
@@ -61,7 +54,6 @@ func (b *SecP256k1ElementProof) verifySigs(message string, signatures *[][]byte)
 			fmt.Println("Bad signature encoding")
 			return false, nil
 		}
-		validSig = false
 
 		for i, pubKey := range b.PublicKeys {
 			success := signature.Verify(messageBytes[:], &pubKey)
@@ -81,7 +73,7 @@ func (b *SecP256k1ElementProof) verifySigs(message string, signatures *[][]byte)
 	}
 	return validSig, validatedSigs
 }
-func (b *SecP256k1ElementProof) Supercede(signatures *[][]byte, supercededBy string, supercedingName string) bool {
+func (b *SecP256k1Output) Supercede(signatures *[][]byte, supercededBy string, supercedingName string) bool {
 
 	success, sigs := b.verifySigs(b.ProofName+":superceded:"+supercededBy, signatures)
 	if !success {
@@ -97,7 +89,7 @@ func (b *SecP256k1ElementProof) Supercede(signatures *[][]byte, supercededBy str
 	return false
 }
 
-func (b *SecP256k1ElementProof) Revoked(signatures *[][]byte) bool {
+func (b *SecP256k1Output) Revoked(signatures *[][]byte) bool {
 
 	success, sigs := b.verifySigs(b.ProofName+":revoked", signatures)
 	if !success {
@@ -112,7 +104,7 @@ func (b *SecP256k1ElementProof) Revoked(signatures *[][]byte) bool {
 	return false
 }
 
-func (b *SecP256k1ElementProof) Signed(signatures *[][]byte, data string) bool {
+func (b *SecP256k1Output) Signed(signatures *[][]byte, data string) bool {
 
 	success, sigs := b.verifySigs(b.ProofName+":"+data, signatures)
 	if !success {
@@ -127,12 +119,12 @@ func (b *SecP256k1ElementProof) Signed(signatures *[][]byte, data string) bool {
 	return false
 }
 
-func (b *SecP256k1ElementProof) Fulfillment() string {
+func (b *SecP256k1Output) Fulfillment() string {
 
 	return "Not Implemented Yet"
 }
 
-func (b *SecP256k1ElementProof) ToBytes() []byte {
+func (b *SecP256k1Output) ToBytes() []byte {
 	store := ProofElementStore.SECPProofElementStore{}
 	store.Name = b.ProofName
 	store.Data = b.Data
@@ -166,7 +158,7 @@ func (b *SecP256k1ElementProof) ToBytes() []byte {
 	return bufferBytes
 }
 
-func (b *SecP256k1ElementProof) FromBytes(bits []byte) error {
+func (b *SecP256k1Output) FromBytes(bits []byte) error {
 	metastore := ProofElementStore.ProofElementStore{}
 	err := proto.Unmarshal(bits, &metastore)
 	if err != nil {
@@ -207,7 +199,7 @@ func (b *SecP256k1ElementProof) FromBytes(bits []byte) error {
 	return nil
 }
 
-func (b *SecP256k1ElementProof) ToJSON() []byte {
+func (b *SecP256k1Output) ToJSON() []byte {
 	type JSONBracket struct {
 		ProofName    string
 		State        string
@@ -247,7 +239,7 @@ func (b *SecP256k1ElementProof) ToJSON() []byte {
 	return jsonstring
 }
 
-func (b *SecP256k1ElementProof) VerifyIdentities(idKeys []btcec.PublicKey, uuid string) bool {
+func (b *SecP256k1Output) VerifyIdentities(idKeys []btcec.PublicKey, uuid string) bool {
 	hashedUUID := sha256.Sum256([]byte(uuid))
 	doubleHashedUUID := sha256.Sum256(hashedUUID[:])
 	encodedHash := hex.EncodeToString(doubleHashedUUID[:])

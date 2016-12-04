@@ -7,14 +7,37 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+package OTX_test
 
-package ElementProof
+import (
+	"testing"
 
-type SigState int
-
-const (
-	Initialized SigState = iota // 0
-	Signed                      // 1
-	Revoked                     // 2
-	Superceded                  // 3
+	"github.com/skuchain/kevlar_utxo/OTX"
 )
+
+func TestInitialState(t *testing.T) {
+	newProof := new(OTX.SecP256k1Output)
+}
+
+func TestInvalidSign(t *testing.T) {
+	newProof := new(ElementProof.SecP256k1Output)
+	var sigs [][]byte
+	if newProof.Signed(&sigs, "") != false || newProof.State != ElementProof.Initialized {
+		t.Error("Signed without signatures should fail")
+	}
+}
+
+func TestInvalidRevoke(t *testing.T) {
+	newProof := new(ElementProof.SecP256k1Output)
+	var sigs [][]byte
+	if newProof.Revoked(&sigs) != false || newProof.State != ElementProof.Initialized {
+		t.Error("Revoke without signatures should fail")
+	}
+}
+
+// func TestInvalidPublicKey(t *testing.T) {
+// 	newProof := new(ElementProof.SecP256k1Output)
+// 	count := []int{0, 1, 2}
+// 	for _ = range count {
+// 	}
+// }

@@ -3,4 +3,4 @@ RUN mkdir -p $GOPATH/src/github.com/skuchain/
 ADD . $GOPATH/src/github.com/skuchain/kevlar
 WORKDIR $GOPATH
 RUN go install github.com/skuchain/kevlar
-RUN cp src/github.com/skuchain/kevlar/vendor/github.com/hyperledger/fabric/peer/core.yaml $GOPATH/bin
+RUN cp src/github.com/skuchain/kevlar_utxo/vendor/github.com/hyperledger/fabric/peer/core.yaml $GOPATH/bin
