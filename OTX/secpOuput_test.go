@@ -12,7 +12,7 @@ package OTX_test
 import (
 	"testing"
 
-	"github.com/skuchain/kevlar_utxo/OTX"
+	"github.com/skuchain/popcodes_utxo/OTX"
 )
 
 func TestInitialState(t *testing.T) {

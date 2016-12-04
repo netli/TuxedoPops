@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/skuchain/kevlar_utxo/OTX"
+	"github.com/skuchain/popcodes_utxo/OTX"
 )
 
 type Popcode struct {

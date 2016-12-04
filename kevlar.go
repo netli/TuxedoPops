@@ -13,7 +13,7 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-	"github.com/skuchain/kevlar_utxo/Popcodes"
+	"github.com/skuchain/popcodes_utxo/Popcodes"
 )
 
 // This chaincode implements the ledger operations for the proofchaincode

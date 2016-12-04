@@ -19,8 +19,8 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
-	"github.com/skuchain/kevlar_utxo/Popcodes"
-	"github.com/skuchain/kevlar_utxo/ProofElementStore"
+	"github.com/skuchain/popcodes_utxo/Popcodes"
+	"github.com/skuchain/popcodes_utxo/ProofElementStore"
 )
 
 type SecP256k1Output struct {
