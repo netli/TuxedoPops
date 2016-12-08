@@ -34,7 +34,7 @@ func (p *Popcode) CreateOutput(amount int, data string, creatorKey btcec.PublicK
 	}
 
 	_ := len(p.Outs)
-	output := ElementProof.SecP256k1Output{}
+	output := OTX.SecP256k1Output{}
 	p.Outputs = append(p.Outputs, output)
 	p.Counter = sha256.Sum256(p.Counter)[:]
 	return nil

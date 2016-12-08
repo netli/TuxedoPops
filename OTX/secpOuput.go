@@ -33,6 +33,17 @@ type SecP256k1Output struct {
 	Creator   btcec.PublicKey
 }
 
+func New(parent *Popcodes.Popcode, creator btcec.PublicKey, idx int, amount int, data string) SecP256k1Output {
+	code := SecP256k1Output{}
+	code.Popcode = parent
+	code.OutputIdx = id
+	code.Data = data
+	code.Amount = amount
+	code.Creator = creator
+
+	return code
+}
+
 //PubKeys hello
 func (b *SecP256k1Output) PubKeys() []string {
 	output := *new([]string)
