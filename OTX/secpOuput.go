@@ -19,7 +19,6 @@ import (
 
 type SecP256k1Output struct {
 	Owners    []btcec.PublicKey
-	OutputIdx int
 	Threshold int
 	Data      string
 	Amount    int
@@ -28,7 +27,6 @@ type SecP256k1Output struct {
 
 func New(creator btcec.PublicKey, idx int, amount int, data string) SecP256k1Output {
 	code := SecP256k1Output{}
-	code.OutputIdx = idx
 	code.Data = data
 	code.Amount = amount
 	code.Creator = creator
@@ -152,9 +150,10 @@ func (b *SecP256k1Output) PubKeys() []string {
 // 	return nil
 // }
 
-func (b *SecP256k1Output) ToJSON() []byte {
+func (b *SecP256k1Output) ToJSON(idx int) []byte {
 	type JSONBracket struct {
 		Owners    []string
+		Idx       int
 		Threshold int
 		Data      string
 		Creator   string

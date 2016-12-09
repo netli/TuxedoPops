@@ -8,47 +8,18 @@
 
 syntax ="proto3";
 
-
-message ProofElementStore{
-enum ProofType{
-  SECP =0;
-  SECPSHA =1;
-}
-ProofType type = 1;
-SECPProofElementStore secp = 2;
-SECPSHA2ProofElementStore secpsha =3;
+message Popcodes{
+  bytes PublicKey = 1;
+  bytes Counter = 2;
+  repeated OTX Ouputs = 3;
 }
 
-message SECPProofElementStore {
-  enum ProofElementState {
-    Initialized =0;
-    Signed =1;
-    Revoked =2;
-    Superceded =3;
-  }
-  string name = 1;
-  ProofElementState state =2;
-  int32 threshold = 3;
-  string data =4;
-  repeated bytes PublicKeys =5;
-  repeated bytes Signatures =6;
-  string SupercededBy =7;
-}
+message OTX{
+   bytes Owners = 1;
+   int64 Idx = 2;
+   int64 Threshold = 3;
+   int64 Amount = 4;
+   string Data = 5; 
+   bytes Creator =6;
 
-message SECPSHA2ProofElementStore {
-  enum ProofElementState {
-    Initialized =0;
-    Signed =1;
-    Revoked =2;
-    Superceded =3;
-  }
-  string name = 1;
-  ProofElementState state =2;
-  int32 threshold = 3;
-  string data =4;
-  repeated bytes PublicKeys =5;
-  repeated bytes Signatures =6;
-  repeated bytes Digests =7;
-  repeated bytes Preimages =8;
-  string supercededBy =9;
 }
