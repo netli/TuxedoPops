@@ -93,6 +93,18 @@ func (p *Popcode) TransferOutput(idx int, amount int64, dest *Popcode, ownerSigs
 		return fmt.Errorf("Invalid Popcode Signature")
 	}
 
+	destOut := p.Outputs[idx]
+	destOut.Amount = amount
+	p.Outputs[idx].Amount -= amount
+	if p.Outputs[idx].Amount == 0 {
+		if idx != (len(p.Outputs) - 1) {
+			p.Outputs = append(p.Outputs[:idx], p.Outputs[idx+1:]...)
+		} else {
+			p.Outputs = p.Outputs[:idx]
+		}
+	}
+	dest.Outputs = append(dest.Outputs, destOut)
+
 	return nil
 
 }
@@ -168,8 +180,4 @@ func (p *Popcode) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, owne
 	digest := sha256.Sum256(p.Counter)
 	p.Counter = digest[:]
 	return nil
-}
-
-func (p *Popcode) Transfer(idx int, dest *Popcode, transfer_sig []byte) {
-
 }
