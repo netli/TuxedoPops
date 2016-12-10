@@ -154,7 +154,7 @@ func (p *Popcode) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, owne
 		fmt.Println("Bad signature encoding")
 		return fmt.Errorf("Bad signature encoding")
 	}
-	success := signature.Verify(messageBytes[:], &p.PubKey)
+	success := signature.Verify(mDigest[:], &p.PubKey)
 	if !success {
 		return fmt.Errorf("Invalid Popcode Signature")
 	}
