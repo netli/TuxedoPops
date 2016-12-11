@@ -41,12 +41,11 @@ func (m *Popcodes) GetOuputs() []*OTX {
 }
 
 type OTX struct {
-	Owners    []byte `protobuf:"bytes,1,opt,name=Owners,proto3" json:"Owners,omitempty"`
-	Idx       int32  `protobuf:"varint,2,opt,name=Idx" json:"Idx,omitempty"`
-	Threshold int32  `protobuf:"varint,3,opt,name=Threshold" json:"Threshold,omitempty"`
-	Amount    int32  `protobuf:"varint,4,opt,name=Amount" json:"Amount,omitempty"`
-	Data      string `protobuf:"bytes,5,opt,name=Data" json:"Data,omitempty"`
-	Creator   []byte `protobuf:"bytes,6,opt,name=Creator,proto3" json:"Creator,omitempty"`
+	Owners    [][]byte `protobuf:"bytes,1,rep,name=Owners,proto3" json:"Owners,omitempty"`
+	Threshold int64    `protobuf:"varint,2,opt,name=Threshold" json:"Threshold,omitempty"`
+	Amount    int64    `protobuf:"varint,3,opt,name=Amount" json:"Amount,omitempty"`
+	Data      string   `protobuf:"bytes,4,opt,name=Data" json:"Data,omitempty"`
+	Creator   []byte   `protobuf:"bytes,5,opt,name=Creator,proto3" json:"Creator,omitempty"`
 }
 
 func (m *OTX) Reset()         { *m = OTX{} }

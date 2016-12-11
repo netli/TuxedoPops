@@ -15,17 +15,18 @@ import (
 	"encoding/json"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/skuchain/popcodes_utxo/PopcodesStore"
 )
 
 type SecP256k1Output struct {
 	Owners    []btcec.PublicKey
 	Threshold int
 	Data      string
-	Amount    int64
+	Amount    int
 	Creator   btcec.PublicKey
 }
 
-func New(creator btcec.PublicKey, amount int64, data string) SecP256k1Output {
+func New(creator btcec.PublicKey, amount int, data string) SecP256k1Output {
 	code := SecP256k1Output{}
 	code.Data = data
 	code.Amount = amount
@@ -150,6 +151,38 @@ func (b *SecP256k1Output) PubKeys() []string {
 // 	return nil
 // }
 
+func (b *SecP256k1Output) toProtoBuf(idx int) PopcodesStore.OTX {
+	buf := PopcodesStore.OTX{}
+	buf.Amount = int64(b.Amount)
+	buf.Creator = b.Creator.SerializeCompressed()
+	buf.Data = b.Data
+	buf.Threshold = int64(b.Threshold)
+	for _, owner := range b.Owners {
+		buf.Owners = append(buf.Owners, owner.SerializeCompressed())
+	}
+	return buf
+}
+
+func (b *SecP256k1Output) fromProtoBuf(buf PopcodesStore.OTX) error {
+	b.Amount = int(buf.Amount)
+	creatorKey, err := btcec.ParsePubKey(buf.Creator, btcec.S256())
+	if err != nil {
+		return err
+	}
+	b.Creator = *creatorKey
+	b.Data = buf.Data
+	b.Threshold = int(buf.Threshold)
+	for _, ownerBuf := range buf.Owners {
+		ownerKey, err := btcec.ParsePubKey(ownerBuf, btcec.S256())
+		if err != nil {
+			return err
+		}
+		b.Owners = append(b.Owners, *ownerKey)
+
+	}
+	return nil
+}
+
 func (b *SecP256k1Output) ToJSON(idx int) []byte {
 	type JSONBracket struct {
 		Owners    []string
@@ -166,7 +199,7 @@ func (b *SecP256k1Output) ToJSON(idx int) []byte {
 	}
 	jsonBracket.Threshold = b.Threshold
 	jsonBracket.Data = b.Data
-	jsonBracket.Amount = b.Amount
+	jsonBracket.Amount = int64(b.Amount)
 
 	jsonstring, err := json.Marshal(jsonBracket)
 	if err != nil {

@@ -15,11 +15,10 @@ message Popcodes{
 }
 
 message OTX{
-   bytes Owners = 1;
-   int64 Idx = 2;
-   int64 Threshold = 3;
-   int64 Amount = 4;
-   string Data = 5; 
-   bytes Creator =6;
+   repeated bytes Owners = 1;
+   int64 Threshold = 2;
+   int64 Amount = 3;
+   string Data = 4; 
+   bytes Creator =5;
 
 }
