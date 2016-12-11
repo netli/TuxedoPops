@@ -26,13 +26,13 @@ type SecP256k1Output struct {
 	Creator   btcec.PublicKey
 }
 
-func New(creator btcec.PublicKey, amount int, data string) SecP256k1Output {
+func New(creator btcec.PublicKey, amount int, data string) *SecP256k1Output {
 	code := SecP256k1Output{}
 	code.Data = data
 	code.Amount = amount
 	code.Creator = creator
 
-	return code
+	return &code
 }
 
 //PubKeys hello
@@ -151,7 +151,7 @@ func (b *SecP256k1Output) PubKeys() []string {
 // 	return nil
 // }
 
-func (b *SecP256k1Output) toProtoBuf(idx int) PopcodesStore.OTX {
+func (b *SecP256k1Output) ToProtoBuf() *PopcodesStore.OTX {
 	buf := PopcodesStore.OTX{}
 	buf.Amount = int64(b.Amount)
 	buf.Creator = b.Creator.SerializeCompressed()
@@ -160,10 +160,10 @@ func (b *SecP256k1Output) toProtoBuf(idx int) PopcodesStore.OTX {
 	for _, owner := range b.Owners {
 		buf.Owners = append(buf.Owners, owner.SerializeCompressed())
 	}
-	return buf
+	return &buf
 }
 
-func (b *SecP256k1Output) fromProtoBuf(buf PopcodesStore.OTX) error {
+func (b *SecP256k1Output) FromProtoBuf(buf PopcodesStore.OTX) error {
 	b.Amount = int(buf.Amount)
 	creatorKey, err := btcec.ParsePubKey(buf.Creator, btcec.S256())
 	if err != nil {

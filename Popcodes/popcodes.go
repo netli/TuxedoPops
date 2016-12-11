@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/golang/protobuf/proto"
 	"github.com/skuchain/popcodes_utxo/OTX"
+	"github.com/skuchain/popcodes_utxo/PopcodesStore"
 )
 
 type Popcode struct {
@@ -55,7 +57,7 @@ func (p *Popcode) verifyPopcodeSigs(idx int, mDigest []byte, ownerSigs [][]byte,
 	return nil
 }
 
-func (p *Popcode) CreateOutput(amount int64, data string, creatorKey btcec.PublicKey, creatorSig []byte) error {
+func (p *Popcode) CreateOutput(amount int, data string, creatorKey btcec.PublicKey, creatorSig []byte) error {
 
 	signature, err := btcec.ParseDERSignature(creatorSig, btcec.S256())
 	if err != nil {
@@ -64,7 +66,7 @@ func (p *Popcode) CreateOutput(amount int64, data string, creatorKey btcec.Publi
 		return fmt.Errorf("Bad signature encoding")
 	}
 
-	message := hex.EncodeToString(p.Counter) + ":" + hex.EncodeToString(p.PubKey.SerializeCompressed()) + ":" + strconv.FormatInt(amount, 10) + ":" + data
+	message := hex.EncodeToString(p.Counter) + ":" + hex.EncodeToString(p.PubKey.SerializeCompressed()) + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
 	messageBytes := sha256.Sum256([]byte(message))
 
 	success := signature.Verify(messageBytes[:], &creatorKey)
@@ -74,13 +76,13 @@ func (p *Popcode) CreateOutput(amount int64, data string, creatorKey btcec.Publi
 	}
 
 	output := OTX.New(creatorKey, amount, data)
-	p.Outputs = append(p.Outputs, output)
+	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
 	return nil
 }
 
-func (p *Popcode) TransferOutput(idx int, amount int64, dest *Popcode, ownerSigs [][]byte, popcodeSig []byte) error {
+func (p *Popcode) TransferOutput(idx int, amount int, dest *Popcode, ownerSigs [][]byte, popcodeSig []byte) error {
 
 	// Check to see if output is valid
 	if idx >= len(p.Outputs) {
@@ -117,7 +119,7 @@ func (p *Popcode) TransferOutput(idx int, amount int64, dest *Popcode, ownerSigs
 
 }
 
-func (p *Popcode) RemoveOutput(idx int, amount int64, ownerSigs [][]byte, popcodeSig []byte) error {
+func (p *Popcode) RemoveOutput(idx int, amount int, ownerSigs [][]byte, popcodeSig []byte) error {
 
 	// Check to see if output is valid
 	if idx >= len(p.Outputs) {
@@ -192,5 +194,42 @@ func (p *Popcode) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, owne
 	}
 	digest := sha256.Sum256(p.Counter)
 	p.Counter = digest[:]
+	return nil
+}
+
+func (p *Popcode) toBytes() []byte {
+	store := PopcodesStore.Popcodes{}
+	store.PublicKey = p.PubKey.SerializeCompressed()
+	store.Counter = p.Counter
+	for _, output := range p.Outputs {
+		store.Outputs = append(store.Outputs, output.ToProtoBuf())
+	}
+
+	bufferBytes, err := proto.Marshal(&store)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return bufferBytes
+
+}
+
+func (p *Popcode) fromBytes(buf []byte) error {
+	store := PopcodesStore.Popcodes{}
+	err := proto.Unmarshal(buf, &store)
+	if err != nil {
+		return err
+	}
+	key, err := btcec.ParsePubKey(store.PublicKey, btcec.S256())
+	if err != nil {
+		return err
+	}
+	p.PubKey = *key
+	p.Counter = store.Counter
+	for _, otx := range store.Outputs {
+		out := OTX.SecP256k1Output{}
+		out.FromProtoBuf(*otx)
+		p.Outputs = append(p.Outputs, out)
+	}
+
 	return nil
 }

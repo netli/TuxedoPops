@@ -26,16 +26,16 @@ var _ = math.Inf
 type Popcodes struct {
 	PublicKey []byte `protobuf:"bytes,1,opt,name=PublicKey,proto3" json:"PublicKey,omitempty"`
 	Counter   []byte `protobuf:"bytes,2,opt,name=Counter,proto3" json:"Counter,omitempty"`
-	Ouputs    []*OTX `protobuf:"bytes,3,rep,name=Ouputs" json:"Ouputs,omitempty"`
+	Outputs   []*OTX `protobuf:"bytes,3,rep,name=Outputs" json:"Outputs,omitempty"`
 }
 
 func (m *Popcodes) Reset()         { *m = Popcodes{} }
 func (m *Popcodes) String() string { return proto.CompactTextString(m) }
 func (*Popcodes) ProtoMessage()    {}
 
-func (m *Popcodes) GetOuputs() []*OTX {
+func (m *Popcodes) GetOutputs() []*OTX {
 	if m != nil {
-		return m.Ouputs
+		return m.Outputs
 	}
 	return nil
 }
