@@ -1,0 +1,5 @@
+syntax ="proto3";
+
+message TXCache{
+    map<string, bool> cache =1;
+}
