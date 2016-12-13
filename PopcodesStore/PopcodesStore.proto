@@ -9,9 +9,9 @@
 syntax ="proto3";
 
 message Popcodes{
-  bytes PublicKey = 1;
-  bytes Counter = 2;
-  repeated OTX Outputs = 3;
+  string Address =1;
+  bytes Counter = 3;
+  repeated OTX Outputs = 4;
 }
 
 message OTX{

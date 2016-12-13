@@ -24,9 +24,9 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type Popcodes struct {
-	PublicKey []byte `protobuf:"bytes,1,opt,name=PublicKey,proto3" json:"PublicKey,omitempty"`
-	Counter   []byte `protobuf:"bytes,2,opt,name=Counter,proto3" json:"Counter,omitempty"`
-	Outputs   []*OTX `protobuf:"bytes,3,rep,name=Outputs" json:"Outputs,omitempty"`
+	Address string `protobuf:"bytes,1,opt,name=Address" json:"Address,omitempty"`
+	Counter []byte `protobuf:"bytes,3,opt,name=Counter,proto3" json:"Counter,omitempty"`
+	Outputs []*OTX `protobuf:"bytes,4,rep,name=Outputs" json:"Outputs,omitempty"`
 }
 
 func (m *Popcodes) Reset()         { *m = Popcodes{} }

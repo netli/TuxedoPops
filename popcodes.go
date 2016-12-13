@@ -10,23 +10,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"crypto/sha256"
 
 	"errors"
 
+	"encoding/base64"
+
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/skuchain/popcodes_utxo/PopcodesTX"
+	txcache "github.com/skuchain/popcodes_utxo/TXCache"
 	"github.com/skuchain/popcodes_utxo/popcodes"
 )
 
 // This chaincode implements the ledger operations for the proofchaincode
 
 // ProofChainCode example simple Chaincode implementation
-type kevlarChainCode struct {
+type popcodesChaincode struct {
 }
 
-func (t *kevlarChainCode) Init(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+func (t *popcodesChaincode) Init(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
 	if len(args) < 1 {
 		fmt.Printf("Invalid Init Arg")
 		return nil, errors.New("Invalid Init Arg")
@@ -44,18 +50,176 @@ func (t *kevlarChainCode) Init(stub *shim.ChaincodeStub, function string, args [
 	return nil, nil
 }
 
-func (t *kevlarChainCode) Invoke(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
-	_ = Popcodes.Popcode{}
+func (t *popcodesChaincode) Invoke(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+	if len(args) == 0 {
+		fmt.Println("Insufficient arguments found")
+		return nil, errors.New("Insufficient arguments found")
+	}
+
+	argsBytes, err := hex.DecodeString(args[0])
+	if err != nil {
+		fmt.Println("Invalid argument expected hex")
+		return nil, errors.New("Invalid argument expected hex")
+	}
+
+	counterseed, err := stub.GetState("CounterSeed")
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	txCache := txcache.TXCache{}
+	txCacheBytes, err := stub.GetState("TxCache")
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	if len(txCacheBytes) > 0 {
+		proto.Unmarshal(txCacheBytes, &txCache)
+	}
+
+	switch function {
+	case "create":
+		createArgs := popcodesTX.CreateTX{}
+		err = proto.Unmarshal(argsBytes, &createArgs)
+		if err != nil {
+			fmt.Println("Invalid argument expected CreateTX protocol buffer")
+			return nil, errors.New("Invalid argument expected CreateTX protocol buffer")
+		}
+		popcodeAddress := base64.StdEncoding.EncodeToString(createArgs.Address)
+		popcodebytes, err := stub.GetState(popcodeAddress)
+
+		if err != nil {
+			fmt.Println("Could not get Popcode State")
+			return nil, errors.New("Could not get Popcode State")
+		}
+		popcode := popcodes.Popcode{}
+
+		if len(popcodebytes) == 0 {
+			hasher := sha256.New()
+			hasher.Write(counterseed)
+			hashedCounterSeed := hasher.Sum(createArgs.Address)
+			popcode.Counter = hashedCounterSeed[:]
+
+			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
+			if err != nil {
+				fmt.Printf(err.Error())
+				return nil, err
+			}
+
+			antiReplayDigest := sha256.Sum256(createArgs.CreatorSig) // WARNING Assumes the Creator sig is not malleable without private key. Need to check if all maleability vectors are checked
+
+			if txCache.Cache[string(antiReplayDigest[:])] {
+				fmt.Printf("Already recieved transaction")
+				return nil, fmt.Errorf("Already recieved transaction")
+			}
+			if len(txCache.Cache) > 100 {
+				nextseed := sha256.Sum256(counterseed)
+				counterseed = nextseed[:]
+				txCache.Cache = make(map[string]bool)
+			}
+
+		} else {
+			err := popcode.FromBytes(popcodebytes)
+			if err != nil {
+				fmt.Println("Popcode Deserialization error")
+				return nil, errors.New("Popcode Deserialization Failure")
+			}
+			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
+			if err != nil {
+				fmt.Printf(err.Error())
+				return nil, err
+			}
+
+		}
+		err = stub.PutState(popcodeAddress, popcode.ToBytes())
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+	case "transfer":
+		transferArgs := popcodesTX.TransferOwners{}
+		err = proto.Unmarshal(argsBytes, &transferArgs)
+		if err != nil {
+			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
+			return nil, errors.New("Invalid argument expected TransferOwners protocol buffer")
+		}
+		popcodebytes, err := stub.GetState(transferArgs.Address)
+		if err != nil {
+			fmt.Println("Could not get Popcode State")
+			return nil, errors.New("Could not get Popcode State")
+		}
+		if len(popcodebytes) == 0 {
+			fmt.Println("No value found in popcode")
+			return nil, errors.New("No value found in popcode")
+		}
+
+		popcode := popcodes.Popcode{}
+		popcode.FromBytes(popcodebytes)
+		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+		err = stub.PutState(transferArgs.Address, popcode.ToBytes())
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+	case "unitize":
+		unitizeArgs := popcodesTX.Unitize{}
+		err = proto.Unmarshal(argsBytes, &unitizeArgs)
+		if err != nil {
+			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
+			return nil, errors.New("Invalid argument expected TransferOwners protocol buffer")
+		}
+		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
+		sourceAddress := base64.StdEncoding.EncodeToString(popcodeKeyDigest[:20])
+		sourcePopcodeBytes, err := stub.GetState(sourceAddress)
+		if err != nil {
+			fmt.Println("Could not get Popcode State")
+			return nil, errors.New("Could not get Popcode State")
+		}
+		if len(sourcePopcodeBytes) == 0 {
+			fmt.Println("No value found in popcode")
+			return nil, errors.New("No value found in popcode")
+		}
+		destAddress := base64.StdEncoding.EncodeToString(unitizeArgs.DestAddress)
+		destPopcodeBytes, err := stub.GetState(destAddress)
+		if err != nil {
+			fmt.Println("Could not get Popcode State")
+			return nil, errors.New("Could not get Popcode State")
+		}
+		destPopcode := popcodes.Popcode{}
+		if len(destPopcodeBytes) == 0 {
+			hasher := sha256.New()
+			hasher.Write(counterseed)
+			hashedCounterSeed := hasher.Sum(unitizeArgs.DestAddress)
+			destPopcode.Counter = hashedCounterSeed[:]
+			//TODO some stuff
+			err = destPopcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
+			if err != nil {
+				fmt.Printf(err.Error())
+				return nil, err
+			}
+
+		}
+	case "combine":
+	default:
+		fmt.Printf("Invalid function type")
+		return nil, fmt.Errorf("Invalid function type")
+	}
 
 	return nil, nil
 }
 
-func (t *kevlarChainCode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+func (t *popcodesChaincode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
 	return nil, nil
 }
 
 // //ProofChainCode.Invoke runs a transaction against the current state
-// func (t *kevlarChainCode) Invoke(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+// func (t *popcodesChaincode) Invoke(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
 
 // 	//Proofs Chaincode should have one transaction argument. This is body of serialized protobuf
 // 	if len(args) == 0 {
@@ -340,7 +504,7 @@ func (t *kevlarChainCode) Query(stub *shim.ChaincodeStub, function string, args 
 // }
 
 // // Query callback representing the query of a chaincode
-// func (t *kevlarChainCode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+// func (t *popcodesChaincode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
 
 // 	fmt.Printf("function: %s", function)
 // 	switch function {
@@ -374,7 +538,7 @@ func (t *kevlarChainCode) Query(stub *shim.ChaincodeStub, function string, args 
 // }
 
 func main() {
-	err := shim.Start(new(kevlarChainCode))
+	err := shim.Start(new(popcodesChaincode))
 	if err != nil {
 		fmt.Printf("Error starting chaincode: %s\n", err)
 	}
