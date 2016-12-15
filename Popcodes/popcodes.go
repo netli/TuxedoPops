@@ -7,6 +7,7 @@ import (
 
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
@@ -349,4 +350,21 @@ func (p *Popcode) FromBytes(buf []byte) error {
 	}
 
 	return nil
+}
+
+func (p *Popcode) ToJSON() []byte {
+	type JSONPopcode struct {
+		Counter string
+		Outputs []string
+	}
+	jsonPopcode := JSONPopcode{}
+	jsonPopcode.Counter = base64.StdEncoding.EncodeToString(p.Counter)
+	for _, o := range p.Outputs {
+		jsonPopcode.Outputs = append(jsonPopcode.Outputs, string(o.ToJSON()))
+	}
+	jsonstring, err := json.Marshal(jsonPopcode)
+	if err != nil {
+		return nil
+	}
+	return jsonstring
 }
