@@ -55,7 +55,7 @@ func (*TransferOwners) ProtoMessage()    {}
 type Unitize struct {
 	SourceOutput  int32    `protobuf:"varint,2,opt,name=SourceOutput" json:"SourceOutput,omitempty"`
 	DestAddress   []byte   `protobuf:"bytes,3,opt,name=DestAddress,proto3" json:"DestAddress,omitempty"`
-	DestAmounts   [][]byte `protobuf:"bytes,4,rep,name=DestAmounts,proto3" json:"DestAmounts,omitempty"`
+	DestAmounts   []int32  `protobuf:"varint,4,rep,name=DestAmounts" json:"DestAmounts,omitempty"`
 	OwnerSigs     [][]byte `protobuf:"bytes,5,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`
 	PopcodePubKey []byte   `protobuf:"bytes,6,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
 	PopcodeSig    []byte   `protobuf:"bytes,7,opt,name=PopcodeSig,proto3" json:"PopcodeSig,omitempty"`
@@ -68,10 +68,13 @@ func (*Unitize) ProtoMessage()    {}
 type Combine struct {
 	Address       string            `protobuf:"bytes,1,opt,name=Address" json:"Address,omitempty"`
 	Sources       []*CombineSources `protobuf:"bytes,2,rep,name=sources" json:"sources,omitempty"`
-	CreatorPubKey []byte            `protobuf:"bytes,3,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
-	CreatorSig    []byte            `protobuf:"bytes,4,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
-	OwnerSigs     [][]byte          `protobuf:"bytes,5,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`
-	PopcodeSigs   []byte            `protobuf:"bytes,6,opt,name=PopcodeSigs,proto3" json:"PopcodeSigs,omitempty"`
+	Amount        int32             `protobuf:"varint,3,opt,name=Amount" json:"Amount,omitempty"`
+	Data          string            `protobuf:"bytes,4,opt,name=Data" json:"Data,omitempty"`
+	CreatorPubKey []byte            `protobuf:"bytes,5,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
+	CreatorSig    []byte            `protobuf:"bytes,6,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
+	OwnerSigs     [][]byte          `protobuf:"bytes,7,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`
+	PopcodePubKey []byte            `protobuf:"bytes,8,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
+	PopcodeSigs   []byte            `protobuf:"bytes,9,opt,name=PopcodeSigs,proto3" json:"PopcodeSigs,omitempty"`
 }
 
 func (m *Combine) Reset()         { *m = Combine{} }
@@ -93,3 +96,11 @@ type CombineSources struct {
 func (m *CombineSources) Reset()         { *m = CombineSources{} }
 func (m *CombineSources) String() string { return proto.CompactTextString(m) }
 func (*CombineSources) ProtoMessage()    {}
+
+func (m CombineSources) Idx() int {
+	return int(m.SourceOutput)
+}
+
+func (m CombineSources) Amount() int {
+	return int(m.SourceAmount)
+}

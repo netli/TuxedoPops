@@ -22,7 +22,7 @@ message TransferOwners{
 message Unitize{
     int32 SourceOutput=2;
     bytes DestAddress=3;
-    repeated bytes DestAmounts =4;
+    repeated int32 DestAmounts =4;
     repeated bytes OwnerSigs =5;
     bytes PopcodePubKey =6;
     bytes PopcodeSig =7;
@@ -30,11 +30,14 @@ message Unitize{
 
 message Combine{
     string Address =1;
-    repeated CombineSources sources=2; 
-    bytes CreatorPubKey =3;
-    bytes CreatorSig =4;
-    repeated bytes OwnerSigs =5;
-    bytes PopcodeSigs =6;
+    repeated CombineSources sources=2;
+    int32 Amount =3; 
+    string Data =4;
+    bytes CreatorPubKey =5;
+    bytes CreatorSig =6;
+    repeated bytes OwnerSigs =7;
+    bytes PopcodePubKey =8;
+    bytes PopcodeSigs =9    ;
     
 }
 
