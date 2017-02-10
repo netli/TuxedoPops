@@ -24,7 +24,8 @@ func checkInvoke(t *testing.T, stub *shim.MockStub, args []string) {
 }
 
 func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
-	bytes, err := stub.MockQuery("QUERY", []string{name})
+	bytes, err := stub.MockQuery("balance", []string{name})
+
 	if err != nil {
 		fmt.Println("Query", name, "failed", err)
 		t.FailNow()
@@ -34,14 +35,16 @@ func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
 		t.FailNow()
 	}
 	if string(bytes) != value {
-		fmt.Println("Query value", name, "was not", value, "as expected")
+		fmt.Println("Query value", name, "was not", value, "as expected", string(bytes))
 		t.FailNow()
 	}
 }
 
 func TestPopcodeChaincode(t *testing.T) {
 	bst := new(popcodesChaincode)
-	stub := shim.NewMockStub("bst", bst)
-	checkInvoke(t, stub, []string{`{"uuid":"1234","title":"test"}`})
-	checkQuery(t, stub, "1234", `{"uuid":"1234","title":"test"}`)
+	stub := shim.NewMockStub("popcodes", bst)
+	checkInit(t, stub, []string{"Hello World"})
+	checkQuery(t, stub, "balance", `{"Address":"balance","Counter":"pZGm1Av0IEBKARczz7exkNYsZb8LzaMrV7J32a2fFG4=","Outputs":null}`)
+	// checkInvoke(t, stub, []string{`{"uuid":"1234","title":"test"}`})
+	// checkQuery(t, stub, "1234", `{"uuid":"1234","title":"test"}`)
 }
