@@ -32,7 +32,7 @@ import (
 type popcodesChaincode struct {
 }
 
-func (t *popcodesChaincode) Init(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+func (t *popcodesChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if len(args) < 1 {
 		fmt.Printf("Invalid Init Arg")
 		return nil, errors.New("Invalid Init Arg")
@@ -50,7 +50,7 @@ func (t *popcodesChaincode) Init(stub *shim.ChaincodeStub, function string, args
 	return nil, nil
 }
 
-func (t *popcodesChaincode) Invoke(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+func (t *popcodesChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if len(args) == 0 {
 		fmt.Println("Insufficient arguments found")
 		return nil, errors.New("Insufficient arguments found")
@@ -100,7 +100,8 @@ func (t *popcodesChaincode) Invoke(stub *shim.ChaincodeStub, function string, ar
 			hasher := sha256.New()
 			hasher.Write(counterseed)
 			hasher.Write(createArgs.Address)
-			hashedCounterSeed := hasher.Sum()
+			hashedCounterSeed := []byte{}
+			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
@@ -202,8 +203,9 @@ func (t *popcodesChaincode) Invoke(stub *shim.ChaincodeStub, function string, ar
 		if len(destPopcodeBytes) == 0 {
 			hasher := sha256.New()
 			hasher.Write(sourcePopcode.Counter)
-			hasher.Write()unitizeArgs.DestAddress)
-			hashedCounterSeed := hasher.Sum()
+			hasher.Write(unitizeArgs.DestAddress)
+			hashedCounterSeed := []byte{}
+			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			destPopcode.Counter = hashedCounterSeed[:]
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))
@@ -277,7 +279,7 @@ func (t *popcodesChaincode) Invoke(stub *shim.ChaincodeStub, function string, ar
 	return nil, nil
 }
 
-func (t *popcodesChaincode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
+func (t *popcodesChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 
 	fmt.Printf("function: %s", function)
 	switch function {
@@ -303,69 +305,14 @@ func (t *popcodesChaincode) Query(stub *shim.ChaincodeStub, function string, arg
 			popcode.Address = args[0]
 			popcode.Counter = counterseed
 			return popcode.ToJSON(), nil
-		} else {
-			popcode.FromBytes(popcodeBytes)
-			return popcode.ToJSON(), nil
 		}
+		popcode.FromBytes(popcodeBytes)
+		return popcode.ToJSON(), nil
+
 	}
-	// 		if err != nil || len(proofBytes) == 0 {
-	// 			return nil, fmt.Errorf("%s is not found", name)
-	// 		}
-	// 		secpProof := new(ElementProof.SecP256k1Output)
-	// 		secpShaProof := new(ElementProof.SecP256k1SHA2ElementProof)
-
-	// 		err = secpProof.FromBytes(proofBytes)
-	// 		if err == nil {
-	// 			return secpProof.ToJSON(), nil
-	// 		}
-
-	// 		err = secpShaProof.FromBytes(proofBytes)
-	// 		if err == nil {
-	// 			return secpShaProof.ToJSON(), nil
-	// 		}
-
-	// 		return nil, nil
-	// 	default:
-	// 		return nil, errors.New("Unsupported operation")
-	// 	}
-	// }
 
 	return nil, nil
 }
-
-// // Query callback representing the query of a chaincode
-// func (t *popcodesChaincode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
-
-// 	fmt.Printf("function: %s", function)
-// 	switch function {
-// 	case "status":
-// 		if len(args) != 1 {
-// 			return nil, fmt.Errorf("No argument specified")
-// 		}
-// 		name := args[0]
-// 		proofBytes, err := stub.GetState("Proof:" + name)
-
-// 		if err != nil || len(proofBytes) == 0 {
-// 			return nil, fmt.Errorf("%s is not found", name)
-// 		}
-// 		secpProof := new(ElementProof.SecP256k1Output)
-// 		secpShaProof := new(ElementProof.SecP256k1SHA2ElementProof)
-
-// 		err = secpProof.FromBytes(proofBytes)
-// 		if err == nil {
-// 			return secpProof.ToJSON(), nil
-// 		}
-
-// 		err = secpShaProof.FromBytes(proofBytes)
-// 		if err == nil {
-// 			return secpShaProof.ToJSON(), nil
-// 		}
-
-// 		return nil, nil
-// 	default:
-// 		return nil, errors.New("Unsupported operation")
-// 	}
-// }
 
 func main() {
 	err := shim.Start(new(popcodesChaincode))

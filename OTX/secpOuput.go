@@ -76,7 +76,7 @@ func (b *SecP256k1Output) FromProtoBuf(buf PopcodesStore.OTX) error {
 	return nil
 }
 
-func (b *SecP256k1Output) ToJSONType() []byte {
+func (b *SecP256k1Output) ToJSON() []byte {
 	type JSONOTX struct {
 		Owners    []string
 		Threshold int
