@@ -360,7 +360,7 @@ func (p *Popcode) ToJSON() []byte {
 	}
 	jsonPopcode := JSONPopcode{}
 	jsonPopcode.Address = p.Address
-	jsonPopcode.Counter = base64.StdEncoding.EncodeToString(p.Counter)
+	jsonPopcode.Counter = hex.EncodeToString(p.Counter)
 	for _, o := range p.Outputs {
 		jsonPopcode.Outputs = append(jsonPopcode.Outputs, string(o.ToJSON()))
 	}
