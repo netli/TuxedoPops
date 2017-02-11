@@ -40,11 +40,16 @@ func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
 	}
 }
 
+// func checkCreate(t *testing.T, stub *shim.MockStub) {
+// 	createArgs := popcodesTX.CreateTX{}
+// 	createArgs.Address:
+// }
+
 func TestPopcodeChaincode(t *testing.T) {
 	bst := new(popcodesChaincode)
 	stub := shim.NewMockStub("popcodes", bst)
 	checkInit(t, stub, []string{"Hello World"})
-	checkQuery(t, stub, "balance", `{"Address":"balance","Counter":"pZGm1Av0IEBKARczz7exkNYsZb8LzaMrV7J32a2fFG4=","Outputs":null}`)
+	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65go", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65go","Counter":"pZGm1Av0IEBKARczz7exkNYsZb8LzaMrV7J32a2fFG4=","Outputs":null}`)
 	// checkInvoke(t, stub, []string{`{"uuid":"1234","title":"test"}`})
 	// checkQuery(t, stub, "1234", `{"uuid":"1234","title":"test"}`)
 }
