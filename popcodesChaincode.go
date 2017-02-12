@@ -301,8 +301,14 @@ func (t *popcodesChaincode) Query(stub shim.ChaincodeStubInterface, function str
 			return nil, err
 		}
 		if len(popcodeBytes) == 0 {
+			addrBytes, _ := hex.DecodeString(address)
+			hasher := sha256.New()
+			hasher.Write(counterseed)
+			hasher.Write(addrBytes)
+			hashedCounterSeed := []byte{}
+			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Address = args[0]
-			popcode.Counter = counterseed
+			popcode.Counter = hashedCounterSeed
 			return popcode.ToJSON(), nil
 		}
 		popcode.FromBytes(popcodeBytes)
