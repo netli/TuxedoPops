@@ -23,10 +23,10 @@ type SecP256k1Output struct {
 	Threshold int
 	Data      string
 	Amount    int
-	Creator   btcec.PublicKey
+	Creator   *btcec.PublicKey
 }
 
-func New(creator btcec.PublicKey, amount int, data string) *SecP256k1Output {
+func New(creator *btcec.PublicKey, amount int, data string) *SecP256k1Output {
 	code := SecP256k1Output{}
 	code.Data = data
 	code.Amount = amount
@@ -62,7 +62,7 @@ func (b *SecP256k1Output) FromProtoBuf(buf PopcodesStore.OTX) error {
 	if err != nil {
 		return err
 	}
-	b.Creator = *creatorKey
+	b.Creator = creatorKey
 	b.Data = buf.Data
 	b.Threshold = int(buf.Threshold)
 	for _, ownerBuf := range buf.Owners {
@@ -92,6 +92,7 @@ func (b *SecP256k1Output) ToJSON() []byte {
 	jsonOTX.Threshold = b.Threshold
 	jsonOTX.Data = b.Data
 	jsonOTX.Amount = int64(b.Amount)
+	jsonOTX.Creator = hex.EncodeToString(b.Creator.SerializeCompressed())
 
 	jsonstring, err := json.Marshal(jsonOTX)
 	if err != nil {

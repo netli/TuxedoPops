@@ -17,8 +17,6 @@ import (
 
 	"errors"
 
-	"encoding/base64"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/skuchain/popcodes_utxo/PopcodesTX"
@@ -87,7 +85,7 @@ func (t *popcodesChaincode) Invoke(stub shim.ChaincodeStubInterface, function st
 			fmt.Println("Invalid argument expected CreateTX protocol buffer")
 			return nil, errors.New("Invalid argument expected CreateTX protocol buffer")
 		}
-		popcodeAddress := base64.StdEncoding.EncodeToString(createArgs.Address)
+		popcodeAddress := hex.EncodeToString(createArgs.Address)
 		popcodebytes, err := stub.GetState(popcodeAddress)
 
 		if err != nil {
@@ -103,7 +101,7 @@ func (t *popcodesChaincode) Invoke(stub shim.ChaincodeStubInterface, function st
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
-
+			popcode.Address = hex.EncodeToString(createArgs.Address)
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
@@ -177,7 +175,7 @@ func (t *popcodesChaincode) Invoke(stub shim.ChaincodeStubInterface, function st
 			return nil, errors.New("Invalid argument expected Unitize protocol buffer")
 		}
 		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
-		sourceAddress := base64.StdEncoding.EncodeToString(popcodeKeyDigest[:20])
+		sourceAddress := hex.EncodeToString(popcodeKeyDigest[:20])
 		sourcePopcodeBytes, err := stub.GetState(sourceAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
@@ -193,7 +191,7 @@ func (t *popcodesChaincode) Invoke(stub shim.ChaincodeStubInterface, function st
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
 		}
-		destAddress := base64.StdEncoding.EncodeToString(unitizeArgs.DestAddress)
+		destAddress := hex.EncodeToString(unitizeArgs.DestAddress)
 		destPopcodeBytes, err := stub.GetState(destAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
@@ -206,6 +204,7 @@ func (t *popcodesChaincode) Invoke(stub shim.ChaincodeStubInterface, function st
 			hasher.Write(unitizeArgs.DestAddress)
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
+
 			destPopcode.Counter = hashedCounterSeed[:]
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))

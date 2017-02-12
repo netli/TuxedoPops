@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 
@@ -69,21 +68,21 @@ func (p *Popcode) CreateOutput(amount int, data string, creatorKeyBytes []byte, 
 
 	signature, err := btcec.ParseDERSignature(creatorSig, btcec.S256())
 	if err != nil {
-		fmt.Println("Bad signature encoding")
+		fmt.Printf("Bad Creator signature encoding %+v", p)
 
-		return fmt.Errorf("Bad signature encoding")
+		return fmt.Errorf("Bad Creator signature encoding %+v", p)
 	}
 
-	message := hex.EncodeToString(p.Counter) + ":" + hex.EncodeToString(p.PubKey.SerializeCompressed()) + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
+	message := hex.EncodeToString(p.Counter) + ":" + p.Address + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
 	messageBytes := sha256.Sum256([]byte(message))
 
 	success := signature.Verify(messageBytes[:], creatorKey)
 	if !success {
-		fmt.Println("Bad signature encoding")
-		return fmt.Errorf("Bad signature encoding")
+		fmt.Printf("Invalid Creator Signature %+v", p)
+		return fmt.Errorf("Invalid Creator Signature %+v", p)
 	}
 
-	output := OTX.New(*creatorKey, amount, data)
+	output := OTX.New(creatorKey, amount, data)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
@@ -100,9 +99,9 @@ func (p *Popcode) CreateOutputFromSources(amount int, data string, creatorKeyByt
 
 	signature, err := btcec.ParseDERSignature(creatorSig, btcec.S256())
 	if err != nil {
-		fmt.Println("Bad signature encoding")
+		fmt.Println("Bad Creator signature encoding")
 
-		return fmt.Errorf("Bad signature encoding")
+		return fmt.Errorf("Bad Creator signature encoding")
 	}
 
 	message := hex.EncodeToString(p.Counter) + ":" + hex.EncodeToString(p.PubKey.SerializeCompressed()) + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
@@ -110,11 +109,11 @@ func (p *Popcode) CreateOutputFromSources(amount int, data string, creatorKeyByt
 
 	success := signature.Verify(messageBytes[:], creatorKey)
 	if !success {
-		fmt.Println("Bad signature encoding")
-		return fmt.Errorf("Bad signature encoding")
+		fmt.Println("Invalid Creator signature")
+		return fmt.Errorf("Invalid Creator signature")
 	}
 
-	output := OTX.New(*creatorKey, amount, data)
+	output := OTX.New(creatorKey, amount, data)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
@@ -131,7 +130,7 @@ func (p *Popcode) UnitizeOutput(idx int, amounts []int, dest *Popcode, ownerSigs
 		return fmt.Errorf("Invalid Creator key")
 	}
 	keyDigest := sha256.Sum256(popcodePubkey)
-	popcodeAddress := base64.StdEncoding.EncodeToString(keyDigest[:20])
+	popcodeAddress := hex.EncodeToString(keyDigest[:20])
 	if popcodeAddress != p.Address {
 		return fmt.Errorf("Invalid Popcode Public Key")
 	}
@@ -153,7 +152,7 @@ func (p *Popcode) UnitizeOutput(idx int, amounts []int, dest *Popcode, ownerSigs
 		return fmt.Errorf("Insufficient amount")
 	}
 	digest := sha256.Sum256(dest.PubKey.SerializeCompressed())
-	dest_address := base64.StdEncoding.EncodeToString(digest[:20])
+	dest_address := hex.EncodeToString(digest[:20])
 	m := dest_address
 	m += ":" + strconv.FormatInt(int64(idx), 10)
 	for _, amount := range amounts {
@@ -200,7 +199,7 @@ func (p *Popcode) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, pop
 	}
 
 	keyDigest := sha256.Sum256(popcodePubKey)
-	popcodeAddress := base64.StdEncoding.EncodeToString(keyDigest[:20])
+	popcodeAddress := hex.EncodeToString(keyDigest[:20])
 	if popcodeAddress != p.Address {
 		return fmt.Errorf("Invalid Popcode Public Key")
 	}
@@ -253,7 +252,7 @@ func (p *Popcode) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, pop
 		fmt.Println("Invalid creator signature")
 		return fmt.Errorf("Invalid creator signature")
 	}
-	output := OTX.New(*creatorPublicKey, createdAmount, data)
+	output := OTX.New(creatorPublicKey, createdAmount, data)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
@@ -271,7 +270,7 @@ func (p *Popcode) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, owne
 		return fmt.Errorf("Invalid Creator key")
 	}
 	keyDigest := sha256.Sum256(popcodePubKey)
-	popcodeAddress := base64.StdEncoding.EncodeToString(keyDigest[:20])
+	popcodeAddress := hex.EncodeToString(keyDigest[:20])
 	if popcodeAddress != p.Address {
 		return fmt.Errorf("Invalid Popcode Public Key")
 	}
