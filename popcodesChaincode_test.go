@@ -78,14 +78,7 @@ func generateCreateSig(CounterSeedStr string, amount int, data string, addr stri
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
 
-	addrBytes, _ := hex.DecodeString(addr)
-	counterSeedBytes, _ := hex.DecodeString(CounterSeedStr)
-	hasher := sha256.New()
-	hasher.Write(counterSeedBytes)
-	hasher.Write(addrBytes)
-	hashedCounterSeed := []byte{}
-	hashedCounterSeed = hasher.Sum(hashedCounterSeed)
-	message := hex.EncodeToString(hashedCounterSeed) + ":" + addr + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
+	message := CounterSeedStr + ":" + addr + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
 	messageBytes := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(messageBytes[:])
 
@@ -97,7 +90,7 @@ func TestPopcodeChaincode(t *testing.T) {
 	stub := shim.NewMockStub("popcodes", bst)
 	checkInit(t, stub, []string{"Hello World"})
 	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598","Outputs":null}`)
-	checkCreate(t, stub, "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e")
+	checkCreate(t, stub, "e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598")
 	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 
 	// checkInvoke(t, stub, []string{`{"uuid":"1234","title":"test"}`})
