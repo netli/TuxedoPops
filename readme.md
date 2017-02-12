@@ -1,10 +1,10 @@
 #Popcode UTXOS
 
 ##Introduction
-Popcodes are proof of provenance codes.
+TuxedoPops are proof of provenance codes.
 
 A popcode contains one or more kinds of values.
 
-Popcodes are generally used as bearer instruments to transfer and subdivide value between them.
+TuxedoPops are generally used as bearer instruments to transfer and subdivide value between them.
 
-Popcodes can optionally have an owner who also needs to sign off on any transfer
+TuxedoPops can optionally have an owner who also needs to sign off on any transfer

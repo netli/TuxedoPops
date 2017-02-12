@@ -15,7 +15,7 @@ import (
 	"encoding/json"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/skuchain/popcodes_utxo/PopcodesStore"
+	"github.com/skuchain/TuxedoPops/TuxedoPopsStore"
 )
 
 type SecP256k1Output struct {
@@ -44,8 +44,8 @@ func (b *SecP256k1Output) PubKeys() []string {
 	return output
 }
 
-func (b *SecP256k1Output) ToProtoBuf() *PopcodesStore.OTX {
-	buf := PopcodesStore.OTX{}
+func (b *SecP256k1Output) ToProtoBuf() *TuxedoPopsStore.OTX {
+	buf := TuxedoPopsStore.OTX{}
 	buf.Amount = int64(b.Amount)
 	buf.Creator = b.Creator.SerializeCompressed()
 	buf.Data = b.Data
@@ -56,7 +56,7 @@ func (b *SecP256k1Output) ToProtoBuf() *PopcodesStore.OTX {
 	return &buf
 }
 
-func (b *SecP256k1Output) FromProtoBuf(buf PopcodesStore.OTX) error {
+func (b *SecP256k1Output) FromProtoBuf(buf TuxedoPopsStore.OTX) error {
 	b.Amount = int(buf.Amount)
 	creatorKey, err := btcec.ParsePubKey(buf.Creator, btcec.S256())
 	if err != nil {
