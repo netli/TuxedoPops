@@ -85,8 +85,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Invalid argument expected CreateTX protocol buffer")
 			return nil, errors.New("Invalid argument expected CreateTX protocol buffer")
 		}
-		popcodeAddress := hex.EncodeToString(createArgs.Address)
-		popcodebytes, err := stub.GetState(popcodeAddress)
+
+		popcodebytes, err := stub.GetState(createArgs.Address)
 
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
@@ -95,13 +95,17 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		popcode := Pop.Pop{}
 
 		if len(popcodebytes) == 0 {
+			addrBytes, err := hex.DecodeString(createArgs.Address)
+			if err != nil {
+				return nil, errors.New("Invalid popcode string")
+			}
 			hasher := sha256.New()
 			hasher.Write(counterseed)
-			hasher.Write(createArgs.Address)
+			hasher.Write(addrBytes)
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
-			popcode.Address = hex.EncodeToString(createArgs.Address)
+			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
@@ -134,7 +138,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			}
 
 		}
-		err = stub.PutState(popcodeAddress, popcode.ToBytes())
+		err = stub.PutState(createArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err

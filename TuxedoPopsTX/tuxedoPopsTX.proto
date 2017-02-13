@@ -2,7 +2,7 @@
 syntax ="proto3";
 
 message CreateTX {
-    bytes Address =1;
+    string Address =1;
     int32 Amount =2;
     string Data =3;
     string Type = 4;

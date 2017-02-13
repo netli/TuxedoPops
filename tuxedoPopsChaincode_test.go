@@ -15,6 +15,11 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
+// Notes from Testing popcode
+// Public Key: 02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc
+// Private Key: 94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20
+// Hyperledger address hex 74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e
+// Hyperledger address Base58: 8sDMfw2Ti7YumfTkbf7RHMgSSSxuAmMFd2GS9wnjkUoX
 func checkInit(t *testing.T, stub *shim.MockStub, args []string) {
 	_, err := stub.MockInit("1", "", args)
 	if err != nil {
@@ -43,18 +48,14 @@ func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
 		t.FailNow()
 	}
 	if string(bytes) != value {
-		fmt.Println("Query value", name, "was not", value, "as expected", string(bytes))
+		fmt.Println("Query value", name, "was not", value, "as expected instead", string(bytes))
 		t.FailNow()
 	}
 }
 
 func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	createArgs := TuxedoPopsTX.CreateTX{}
-	addrBytes, err := hex.DecodeString("66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65")
-	if err != nil {
-		fmt.Println(err)
-	}
-	createArgs.Address = addrBytes
+	createArgs.Address = "74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e"
 	createArgs.Amount = 10
 	pubKeyBytes, err := hex.DecodeString("03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26")
 	if err != nil {
@@ -62,17 +63,20 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 
 	}
 	createArgs.CreatorPubKey = pubKeyBytes
-	createArgs.CreatorSig = generateCreateSig(counterSeed, 10, "Test Data", "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
+	createArgs.CreatorSig = generateCreateSig(counterSeed, 10, "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
 	createArgs.Data = "Test Data"
 	createArgBytes, err := proto.Marshal(&createArgs)
 	createArgBytesStr := hex.EncodeToString(createArgBytes)
 	_, err = stub.MockInvoke("3", "create", []string{createArgBytesStr})
 	if err != nil {
 		fmt.Println(err)
-
 	}
 }
 
+func possess(t *testing.T, stub *shim.MockStub, counterSeed string) {
+	transferArgs := TuxedoPopsTX.TransferOwners{}
+	transferArgs.Address = "74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e"
+}
 func generateCreateSig(CounterSeedStr string, amount int, data string, addr string, privateKeyStr string) []byte {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
@@ -89,11 +93,11 @@ func TestPopcodeChaincode(t *testing.T) {
 	bst := new(tuxedoPopsChaincode)
 	stub := shim.NewMockStub("tuxedoPops", bst)
 	checkInit(t, stub, []string{"Hello World"})
-	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598","Outputs":null}`)
-	mint(t, stub, "e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598")
-	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
-	mint(t, stub, "c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc")
-	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"93985567a9e8e024b5e534b69653a924668f12090572acfe982a5358767bf961","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}","{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
+	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e","Counter":"15033f2887d704c18539c645cf3b341c30dac35214d9ca829b75761c3c7bfbda","Outputs":null}`)
+	mint(t, stub, "15033f2887d704c18539c645cf3b341c30dac35214d9ca829b75761c3c7bfbda")
+	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e","Counter":"db4d33af4f686ef0de2d75f6ec5563f35219a9e60167f1008eb028ac2e61d730","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"15033f2887d704c18539c645cf3b341c30dac35214d9ca829b75761c3c7bfbda\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
+	mint(t, stub, "db4d33af4f686ef0de2d75f6ec5563f35219a9e60167f1008eb028ac2e61d730")
+	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921c442867d03bcea6a5eb8ac4e","Counter":"7eb2b7c94824f3c07d8581b1e329597553cdebf450cd4289b4d23f951f92fe77","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"15033f2887d704c18539c645cf3b341c30dac35214d9ca829b75761c3c7bfbda\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}","{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"db4d33af4f686ef0de2d75f6ec5563f35219a9e60167f1008eb028ac2e61d730\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 
 	// checkInvoke(t, stub, []string{`{"uuid":"1234","title":"test"}`})
 	// checkQuery(t, stub, "1234", `{"uuid":"1234","title":"test"}`)

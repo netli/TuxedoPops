@@ -27,7 +27,7 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type CreateTX struct {
-	Address       []byte `protobuf:"bytes,1,opt,name=Address,proto3" json:"Address,omitempty"`
+	Address       string `protobuf:"bytes,1,opt,name=Address" json:"Address,omitempty"`
 	Amount        int32  `protobuf:"varint,2,opt,name=Amount" json:"Amount,omitempty"`
 	Data          string `protobuf:"bytes,3,opt,name=Data" json:"Data,omitempty"`
 	Type          string `protobuf:"bytes,4,opt,name=Type" json:"Type,omitempty"`
