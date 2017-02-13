@@ -48,8 +48,8 @@ func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
 	}
 }
 
-func checkCreate(t *testing.T, stub *shim.MockStub, counterSeed string) {
-	createArgs := tuxedoPopsTX.CreateTX{}
+func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
+	createArgs := TuxedoPopsTX.CreateTX{}
 	addrBytes, err := hex.DecodeString("66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65")
 	if err != nil {
 		fmt.Println(err)
@@ -90,10 +90,10 @@ func TestPopcodeChaincode(t *testing.T) {
 	stub := shim.NewMockStub("tuxedoPops", bst)
 	checkInit(t, stub, []string{"Hello World"})
 	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598","Outputs":null}`)
-	checkCreate(t, stub, "e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598")
-	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
-	checkCreate(t, stub, "c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc")
-	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"93985567a9e8e024b5e534b69653a924668f12090572acfe982a5358767bf961","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}","{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
+	mint(t, stub, "e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598")
+	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
+	mint(t, stub, "c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc")
+	checkQuery(t, stub, "66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65", `{"Address":"66ea3c64e079948d5c01ba3f2eb4697dcdf9976a0804bc849d8fa06bae869d65","Counter":"93985567a9e8e024b5e534b69653a924668f12090572acfe982a5358767bf961","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"e46f24333bf59eb7da4ab55fa041bc071e7a3fcbbf2b41c947ceac24f195b598\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}","{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"\",\"PrevCounter\":\"c1db5aefa87f69f0a80f1578a89db52d0302dfffe0506b73a86e81706f6ffcdc\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 
 	// checkInvoke(t, stub, []string{`{"uuid":"1234","title":"test"}`})
 	// checkQuery(t, stub, "1234", `{"uuid":"1234","title":"test"}`)

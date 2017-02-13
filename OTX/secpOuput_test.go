@@ -9,31 +9,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 */
 package OTX_test
 
-import (
-	"testing"
+// func TestInitialState(t *testing.T) {
+// 	// newProof := new(OTX.SecP256k1Output)
+// }
 
-	"github.com/skuchain/TuxedoPops/OTX"
-)
+// func TestInvalidSign(t *testing.T) {
+// 	newProof := new(ElementProof.SecP256k1Output)
+// 	var sigs [][]byte
+// 	if newProof.Signed(&sigs, "") != false || newProof.State != ElementProof.Initialized {
+// 		t.Error("Signed without signatures should fail")
+// 	}
+// }
 
-func TestInitialState(t *testing.T) {
-	newProof := new(OTX.SecP256k1Output)
-}
-
-func TestInvalidSign(t *testing.T) {
-	newProof := new(ElementProof.SecP256k1Output)
-	var sigs [][]byte
-	if newProof.Signed(&sigs, "") != false || newProof.State != ElementProof.Initialized {
-		t.Error("Signed without signatures should fail")
-	}
-}
-
-func TestInvalidRevoke(t *testing.T) {
-	newProof := new(ElementProof.SecP256k1Output)
-	var sigs [][]byte
-	if newProof.Revoked(&sigs) != false || newProof.State != ElementProof.Initialized {
-		t.Error("Revoke without signatures should fail")
-	}
-}
+// func TestInvalidRevoke(t *testing.T) {
+// 	newProof := new(ElementProof.SecP256k1Output)
+// 	var sigs [][]byte
+// 	if newProof.Revoked(&sigs) != false || newProof.State != ElementProof.Initialized {
+// 		t.Error("Revoke without signatures should fail")
+// 	}
+// }
 
 // func TestInvalidPublicKey(t *testing.T) {
 // 	newProof := new(ElementProof.SecP256k1Output)

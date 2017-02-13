@@ -58,7 +58,7 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 	return nil
 }
 
-func (p *Pop) CreateOutput(amount int, data string, creatorKeyBytes []byte, creatorSig []byte) error {
+func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKeyBytes []byte, creatorSig []byte) error {
 
 	creatorKey, err := btcec.ParsePubKey(creatorKeyBytes, btcec.S256())
 
@@ -82,14 +82,15 @@ func (p *Pop) CreateOutput(amount int, data string, creatorKeyBytes []byte, crea
 		return fmt.Errorf("Invalid Creator Signature %+v", p)
 	}
 
-	output := OTX.New(creatorKey, amount, data)
+	output := OTX.New(creatorKey, amount, assetType, data, p.Counter)
+
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
 	return nil
 }
 
-func (p *Pop) CreateOutputFromSources(amount int, data string, creatorKeyBytes []byte, creatorSig []byte) error {
+func (p *Pop) CreateOutputFromSources(amount int, assetType string, data string, creatorKeyBytes []byte, creatorSig []byte, counter []byte) error {
 
 	creatorKey, err := btcec.ParsePubKey(creatorKeyBytes, btcec.S256())
 
@@ -113,7 +114,7 @@ func (p *Pop) CreateOutputFromSources(amount int, data string, creatorKeyBytes [
 		return fmt.Errorf("Invalid Creator signature")
 	}
 
-	output := OTX.New(creatorKey, amount, data)
+	output := OTX.New(creatorKey, amount, assetType, data, counter)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
@@ -188,7 +189,7 @@ type SourceOutput interface {
 	Amount() int
 }
 
-func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte, createdAmount int, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
+func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte, createdAmount int, assetType string, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
 
 	pubkey, err := btcec.ParsePubKey(PopPubKey, btcec.S256())
 
@@ -252,7 +253,7 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		fmt.Println("Invalid creator signature")
 		return fmt.Errorf("Invalid creator signature")
 	}
-	output := OTX.New(creatorPublicKey, createdAmount, data)
+	output := OTX.New(creatorPublicKey, createdAmount, assetType, data, p.Counter)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]

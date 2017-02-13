@@ -102,7 +102,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
 			popcode.Address = hex.EncodeToString(createArgs.Address)
-			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
+
+			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
 				return nil, err
@@ -126,7 +127,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 				fmt.Println("Popcode Deserialization error")
 				return nil, errors.New("Popcode Deserialization Failure")
 			}
-			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
+			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
 				return nil, err
@@ -250,7 +251,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			sources[i] = v
 		}
 
-		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
+		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), combineArgs.Type, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
 		err = stub.PutState(combineArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())

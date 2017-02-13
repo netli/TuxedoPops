@@ -5,8 +5,9 @@ message CreateTX {
     bytes Address =1;
     int32 Amount =2;
     string Data =3;
-    bytes CreatorPubKey =4;
-    bytes CreatorSig =5;
+    string Type = 4;
+    bytes CreatorPubKey =5;
+    bytes CreatorSig =6;
 }
 
 message TransferOwners{
@@ -17,6 +18,7 @@ message TransferOwners{
     repeated bytes PrevOwnerSigs=5;
     bytes PopcodePubKey =6;
     bytes PopcodeSig=7;
+    string Data = 8;
 }
 
 message Unitize{
@@ -26,18 +28,20 @@ message Unitize{
     repeated bytes OwnerSigs =5;
     bytes PopcodePubKey =6;
     bytes PopcodeSig =7;
+    string Data =8;
 }
 
 message Combine{
     string Address =1;
     repeated CombineSources sources=2;
     int32 Amount =3; 
-    string Data =4;
+    string Type =4;
     bytes CreatorPubKey =5;
     bytes CreatorSig =6;
     repeated bytes OwnerSigs =7;
     bytes PopcodePubKey =8;
-    bytes PopcodeSigs =9    ;
+    bytes PopcodeSigs =9;
+    string Data =10;
     
 }
 

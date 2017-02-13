@@ -19,19 +19,22 @@ import (
 )
 
 type SecP256k1Output struct {
-	Owners    []btcec.PublicKey
-	Threshold int
-	Data      string
-	Amount    int
-	Creator   *btcec.PublicKey
+	Owners      []btcec.PublicKey
+	Threshold   int
+	Type        string
+	Amount      int
+	Creator     *btcec.PublicKey
+	Data        string
+	PrevCounter []byte
 }
 
-func New(creator *btcec.PublicKey, amount int, data string) *SecP256k1Output {
+func New(creator *btcec.PublicKey, amount int, assetType string, TxData string, counter []byte) *SecP256k1Output {
 	code := SecP256k1Output{}
-	code.Data = data
+	code.Type = assetType
 	code.Amount = amount
 	code.Creator = creator
-
+	code.Data = TxData
+	code.PrevCounter = counter
 	return &code
 }
 
@@ -48,7 +51,9 @@ func (b *SecP256k1Output) ToProtoBuf() *TuxedoPopsStore.OTX {
 	buf := TuxedoPopsStore.OTX{}
 	buf.Amount = int64(b.Amount)
 	buf.Creator = b.Creator.SerializeCompressed()
+	buf.Type = b.Type
 	buf.Data = b.Data
+	buf.PrevCounter = b.PrevCounter
 	buf.Threshold = int64(b.Threshold)
 	for _, owner := range b.Owners {
 		buf.Owners = append(buf.Owners, owner.SerializeCompressed())
@@ -63,8 +68,10 @@ func (b *SecP256k1Output) FromProtoBuf(buf TuxedoPopsStore.OTX) error {
 		return err
 	}
 	b.Creator = creatorKey
+	b.Type = buf.Type
 	b.Data = buf.Data
 	b.Threshold = int(buf.Threshold)
+	b.PrevCounter = buf.PrevCounter
 	for _, ownerBuf := range buf.Owners {
 		ownerKey, err := btcec.ParsePubKey(ownerBuf, btcec.S256())
 		if err != nil {
@@ -78,11 +85,13 @@ func (b *SecP256k1Output) FromProtoBuf(buf TuxedoPopsStore.OTX) error {
 
 func (b *SecP256k1Output) ToJSON() []byte {
 	type JSONOTX struct {
-		Owners    []string
-		Threshold int
-		Data      string
-		Creator   string
-		Amount    int64
+		Owners      []string
+		Threshold   int
+		Data        string
+		Type        string
+		PrevCounter string
+		Creator     string
+		Amount      int64
 	}
 	jsonOTX := JSONOTX{}
 
@@ -91,8 +100,10 @@ func (b *SecP256k1Output) ToJSON() []byte {
 	}
 	jsonOTX.Threshold = b.Threshold
 	jsonOTX.Data = b.Data
+	jsonOTX.Type = b.Type
 	jsonOTX.Amount = int64(b.Amount)
 	jsonOTX.Creator = hex.EncodeToString(b.Creator.SerializeCompressed())
+	jsonOTX.PrevCounter = hex.EncodeToString(b.PrevCounter)
 
 	jsonstring, err := json.Marshal(jsonOTX)
 	if err != nil {
