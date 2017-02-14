@@ -214,8 +214,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			destPopcode.Counter = hashedCounterSeed[:]
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))
-		for destAmount := range unitizeArgs.DestAmounts {
-			convertedAmounts = append(convertedAmounts, int(destAmount))
+		for i, destAmount := range unitizeArgs.DestAmounts {
+			convertedAmounts[i] = int(destAmount)
 		}
 		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, &destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
 		err = stub.PutState(sourceAddress, sourcePopcode.ToBytes())

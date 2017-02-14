@@ -281,12 +281,12 @@ func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]b
 		return fmt.Errorf("Invalid index")
 	}
 
-	for _, newowns := range newOwnersBytes {
+	for i, newowns := range newOwnersBytes {
 		pubKey, err := btcec.ParsePubKey(newowns, btcec.S256())
 		if err != nil {
 			return fmt.Errorf("Invalid New Owner PublicKey")
 		}
-		newOwners = append(newOwners, *pubKey)
+		newOwners[i] = *pubKey
 	}
 	//Retrieve output
 
