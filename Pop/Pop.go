@@ -29,8 +29,7 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 		for _, sigbytes := range ownerSigs {
 			signature, err := btcec.ParseDERSignature(sigbytes, btcec.S256())
 			if err != nil {
-				fmt.Println("Bad signature encoding")
-				return fmt.Errorf("Bad signature encoding")
+				return fmt.Errorf("Bad  Ownder signature encoding %v", sigbytes)
 			}
 
 			for i, pubKey := range otx.Owners {
@@ -48,12 +47,11 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 
 	signature, err := btcec.ParseDERSignature(PopSig, btcec.S256())
 	if err != nil {
-		fmt.Println("Bad signature encoding")
-		return fmt.Errorf("Bad signature encoding")
+		return fmt.Errorf("Bad popcode signature encoding %v", signature)
 	}
 	success := signature.Verify(mDigest[:], &p.PubKey)
 	if !success {
-		return fmt.Errorf("Invalid Pop Signature")
+		return fmt.Errorf("Invalid Pop Signature %+v Pubkey %s Message %s", signature, hex.EncodeToString(p.PubKey.SerializeCompressed()), hex.EncodeToString(mDigest[:]))
 	}
 	return nil
 }
@@ -261,19 +259,19 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 
 }
 
-func (p *Pop) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte) error {
+func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]byte, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte) error {
 
 	pubkey, err := btcec.ParsePubKey(PopPubKey, btcec.S256())
 
 	p.PubKey = *pubkey
 
 	if err != nil {
-		return fmt.Errorf("Invalid Creator key")
+		return fmt.Errorf("Invalid Creator key %v", PopPubKey)
 	}
 	keyDigest := sha256.Sum256(PopPubKey)
 	PopAddress := hex.EncodeToString(keyDigest[:20])
 	if PopAddress != p.Address {
-		return fmt.Errorf("Invalid Pop Public Key")
+		return fmt.Errorf("Invalid Pop Public Key for address %v", PopAddress)
 	}
 
 	newOwners := make([]btcec.PublicKey, len(newOwnersBytes))
@@ -282,7 +280,7 @@ func (p *Pop) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, ownerSig
 	if idx >= len(p.Outputs) {
 		return fmt.Errorf("Invalid index")
 	}
-	// Deserialize new Public keys if any
+
 	for _, newowns := range newOwnersBytes {
 		pubKey, err := btcec.ParsePubKey(newowns, btcec.S256())
 		if err != nil {
@@ -297,10 +295,14 @@ func (p *Pop) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, ownerSig
 	if threshold > 0 {
 		m += ":" + strconv.FormatInt(int64(threshold), 10)
 	}
+	m += ":" + data
 	for _, newO := range newOwners {
-		m += ":"
-		m += hex.EncodeToString(newO.SerializeCompressed())
+		if newO.Curve != nil && newO.X != nil && newO.Y != nil {
+			m += ":"
+			m += hex.EncodeToString(newO.SerializeCompressed())
+		}
 	}
+	// fmt.Printf("Verify message %s \n", m)
 	mDigest := sha256.Sum256([]byte(m))
 
 	err = p.verifyPopSigs(idx, mDigest[:], ownerSigs, PopSig)
@@ -308,6 +310,8 @@ func (p *Pop) SetOwner(idx int, threshold int, newOwnersBytes [][]byte, ownerSig
 		return err
 	}
 	p.Outputs[idx].Owners = newOwners
+	p.Outputs[idx].Data = data
+	p.Outputs[idx].PrevCounter = p.Counter
 
 	if threshold > 0 {
 		p.Outputs[idx].Threshold = threshold

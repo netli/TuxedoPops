@@ -56,7 +56,10 @@ func (b *SecP256k1Output) ToProtoBuf() *TuxedoPopsStore.OTX {
 	buf.PrevCounter = b.PrevCounter
 	buf.Threshold = int64(b.Threshold)
 	for _, owner := range b.Owners {
-		buf.Owners = append(buf.Owners, owner.SerializeCompressed())
+		if owner.Curve != nil && owner.X != nil && owner.Y != nil {
+
+			buf.Owners = append(buf.Owners, owner.SerializeCompressed())
+		}
 	}
 	return &buf
 }

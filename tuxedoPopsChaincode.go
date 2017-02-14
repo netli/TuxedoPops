@@ -163,7 +163,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		popcode := Pop.Pop{}
 		popcode.FromBytes(popcodebytes)
-		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
+		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
