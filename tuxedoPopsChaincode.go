@@ -75,6 +75,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 	if len(txCacheBytes) > 0 {
 		proto.Unmarshal(txCacheBytes, &txCache)
+	} else {
+		txCache.Cache = make(map[string]bool)
 	}
 
 	switch function {
@@ -138,6 +140,10 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			}
 
 		}
+
+		sigHash := sha256.Sum256(createArgs.CreatorSig[:])
+		cacheIndex := hex.EncodeToString(sigHash[:])
+		txCache.Cache[cacheIndex] = true
 		err = stub.PutState(createArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
