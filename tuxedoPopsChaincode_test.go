@@ -141,6 +141,8 @@ func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	unitizeArgs := TuxedoPopsTX.Unitize{}
 	unitizeArgs.DestAddress = "10734390011641497f489cb475743b8e50d429bb"
 	unitizeArgs.DestAmounts = []int32{10}
+	unitizeArgs.SourceAddress = "74ded2036e988fc56e3cff77a40c58239591e921"
+	unitizeArgs.SourceOutput = 0
 }
 
 func TestPopcodeChaincode(t *testing.T) {
