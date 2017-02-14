@@ -55,7 +55,8 @@ func (m *TransferOwners) String() string { return proto.CompactTextString(m) }
 func (*TransferOwners) ProtoMessage()    {}
 
 type Unitize struct {
-	SourceOutput  int32    `protobuf:"varint,2,opt,name=SourceOutput" json:"SourceOutput,omitempty"`
+	SourceOutput  int32    `protobuf:"varint,1,opt,name=SourceOutput" json:"SourceOutput,omitempty"`
+	SourceAddress string   `protobuf:"bytes,2,opt,name=SourceAddress" json:"SourceAddress,omitempty"`
 	DestAddress   string   `protobuf:"bytes,3,opt,name=DestAddress" json:"DestAddress,omitempty"`
 	DestAmounts   []int32  `protobuf:"varint,4,rep,name=DestAmounts" json:"DestAmounts,omitempty"`
 	OwnerSigs     [][]byte `protobuf:"bytes,5,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`

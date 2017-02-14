@@ -21,6 +21,12 @@ import (
 // Hyperledger address hex 74ded2036e988fc56e3cff77a40c58239591e921
 // Hyperledger address Base58: 8sDMfw2Ti7YumfTkbf7RHMgSSSxuAmMFd2GS9wnjkUoX
 
+// Notes from Testing popcode2
+// Public Key: 02cb6d65b04c4b84502015f918fe549e95cad4f3b899359a170d4d7d438363c0ce
+// Private Key: 60977f22a920c9aa18d58d12cb5e90594152d7aa724bcce21484dfd0f4490b58
+// Hyperledger address hex 10734390011641497f489cb475743b8e50d429bb
+// Hyperledger address Base58: EHxhLN3Ft4p9jPkR31MJMEMee9G
+
 //Owner1 key
 // Public Key: 0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7
 // Private Key: 7142c92e6eba38de08980eeb55b8c98bb19f8d417795adb56b6c4d25da6b26c5
@@ -129,6 +135,12 @@ func generatePossesSig(CounterSeedStr string, outputIdx int, data string, newOwn
 	sig, _ := privKey.Sign(mDigest[:])
 	return sig.Serialize()
 
+}
+
+func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
+	unitizeArgs := TuxedoPopsTX.Unitize{}
+	unitizeArgs.DestAddress = "10734390011641497f489cb475743b8e50d429bb"
+	unitizeArgs.DestAmounts = []int32{10}
 }
 
 func TestPopcodeChaincode(t *testing.T) {
