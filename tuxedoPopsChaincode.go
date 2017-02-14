@@ -97,7 +97,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		if len(popcodebytes) == 0 {
 			addrBytes, err := hex.DecodeString(createArgs.Address)
 			if err != nil {
-				return nil, errors.New("Invalid popcode string")
+				return nil, fmt.Errorf("Invalid popcode address %s ", createArgs.Address)
 			}
 			hasher := sha256.New()
 			hasher.Write(counterseed)
