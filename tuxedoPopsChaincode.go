@@ -197,17 +197,20 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
 		}
-		destAddress := hex.EncodeToString(unitizeArgs.DestAddress)
+		destAddress := unitizeArgs.DestAddress
 		destPopcodeBytes, err := stub.GetState(destAddress)
 		if err != nil {
-			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
 		}
 		destPopcode := Pop.Pop{}
 		if len(destPopcodeBytes) == 0 {
+			destAddressBytes, err := hex.DecodeString(destAddress)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid address %s", destAddress)
+			}
 			hasher := sha256.New()
 			hasher.Write(sourcePopcode.Counter)
-			hasher.Write(unitizeArgs.DestAddress)
+			hasher.Write(destAddressBytes)
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 

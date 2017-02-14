@@ -23,7 +23,7 @@ message TransferOwners{
 
 message Unitize{
     int32 SourceOutput=2;
-    bytes DestAddress=3;
+    string DestAddress=3;
     repeated int32 DestAmounts =4;
     repeated bytes OwnerSigs =5;
     bytes PopcodePubKey =6;

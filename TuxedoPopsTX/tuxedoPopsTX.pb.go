@@ -56,7 +56,7 @@ func (*TransferOwners) ProtoMessage()    {}
 
 type Unitize struct {
 	SourceOutput  int32    `protobuf:"varint,2,opt,name=SourceOutput" json:"SourceOutput,omitempty"`
-	DestAddress   []byte   `protobuf:"bytes,3,opt,name=DestAddress,proto3" json:"DestAddress,omitempty"`
+	DestAddress   string   `protobuf:"bytes,3,opt,name=DestAddress" json:"DestAddress,omitempty"`
 	DestAmounts   []int32  `protobuf:"varint,4,rep,name=DestAmounts" json:"DestAmounts,omitempty"`
 	OwnerSigs     [][]byte `protobuf:"bytes,5,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`
 	PopcodePubKey []byte   `protobuf:"bytes,6,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
