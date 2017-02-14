@@ -119,7 +119,7 @@ func (p *Pop) CreateOutputFromSources(amount int, assetType string, data string,
 	return nil
 }
 
-func (p *Pop) UnitizeOutput(idx int, amounts []int, dest *Pop, ownerSigs [][]byte, PopPubkey []byte, PopSig []byte) error {
+func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, ownerSigs [][]byte, PopPubkey []byte, PopSig []byte) error {
 
 	pubkey, err := btcec.ParsePubKey(PopPubkey, btcec.S256())
 
@@ -150,9 +150,8 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, dest *Pop, ownerSigs [][]byt
 	if otx.Amount < totalAmount {
 		return fmt.Errorf("Insufficient amount")
 	}
-	digest := sha256.Sum256(dest.PubKey.SerializeCompressed())
-	dest_address := hex.EncodeToString(digest[:20])
-	m := dest_address
+
+	m := hex.EncodeToString(p.Counter) + ":" + dest.Address + ":" + data
 	m += ":" + strconv.FormatInt(int64(idx), 10)
 	for _, amount := range amounts {
 		m += ":" + strconv.FormatInt(int64(amount), 10)
@@ -167,7 +166,10 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, dest *Pop, ownerSigs [][]byt
 
 		//I'm pretty sure this is a copy not a reference
 		destOut := p.Outputs[idx]
+		destOut.PrevCounter = p.Counter
+		destOut.Data = data
 		destOut.Amount = amount
+		destOut.Owners = []btcec.PublicKey{}
 		p.Outputs[idx].Amount -= amount
 		if p.Outputs[idx].Amount == 0 {
 			if idx != (len(p.Outputs) - 1) {
@@ -178,6 +180,8 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, dest *Pop, ownerSigs [][]byt
 		}
 		dest.Outputs = append(dest.Outputs, destOut)
 	}
+	newCounter := sha256.Sum256(p.Counter)
+	p.Counter = newCounter[:]
 	return nil
 
 }

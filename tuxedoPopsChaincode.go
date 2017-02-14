@@ -213,14 +213,20 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hasher.Write(destAddressBytes)
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
-
+			destPopcode.Address = unitizeArgs.DestAddress
 			destPopcode.Counter = hashedCounterSeed[:]
+		} else {
+			err = destPopcode.FromBytes(destPopcodeBytes)
+			if err != nil {
+				fmt.Println("Dest Popcode Deserialization error")
+				return nil, errors.New("Dest Popcode Deserialization Failure")
+			}
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))
 		for i, destAmount := range unitizeArgs.DestAmounts {
 			convertedAmounts[i] = int(destAmount)
 		}
-		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, &destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
+		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data, &destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
 		err = stub.PutState(sourceAddress, sourcePopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
