@@ -71,6 +71,7 @@ func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKey
 		return fmt.Errorf("Bad Creator signature encoding %+v", p)
 	}
 
+	//FIXME add Value to the signature
 	message := hex.EncodeToString(p.Counter) + ":" + p.Address + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
 	messageBytes := sha256.Sum256([]byte(message))
 
@@ -103,7 +104,7 @@ func (p *Pop) CreateOutputFromSources(amount int, assetType string, data string,
 		return fmt.Errorf("Bad Creator signature encoding")
 	}
 
-	message := hex.EncodeToString(p.Counter) + ":" + hex.EncodeToString(p.PubKey.SerializeCompressed()) + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
+	message := hex.EncodeToString(p.Counter) + ":" + strconv.FormatInt(int64(amount), 10) + ":" + assetType + ":" + data
 	messageBytes := sha256.Sum256([]byte(message))
 
 	success := signature.Verify(messageBytes[:], creatorKey)
