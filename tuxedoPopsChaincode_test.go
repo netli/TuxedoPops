@@ -77,7 +77,7 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 
 	}
 	createArgs.CreatorPubKey = pubKeyBytes
-	createArgs.CreatorSig = generateCreateSig(counterSeed, 10, "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
+	createArgs.CreatorSig = generateCreateSig(counterSeed, 10, "Test Asset", "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
 	createArgs.Data = "Test Data"
 	createArgs.Type = "Test Asset"
 	createArgBytes, err := proto.Marshal(&createArgs)
@@ -88,12 +88,12 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	}
 }
 
-func generateCreateSig(CounterSeedStr string, amount int, data string, addr string, privateKeyStr string) []byte {
+func generateCreateSig(CounterSeedStr string, amount int, assetType string, data string, addr string, privateKeyStr string) []byte {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
 
-	message := CounterSeedStr + ":" + addr + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
+	message := CounterSeedStr + ":" + addr + ":" + strconv.FormatInt(int64(amount), 10) + ":" + assetType + ":" + data
 	fmt.Println("Signed Message")
 	fmt.Println(message)
 	messageBytes := sha256.Sum256([]byte(message))
