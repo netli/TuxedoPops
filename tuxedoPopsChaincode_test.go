@@ -74,10 +74,14 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	pubKeyBytes, err := hex.DecodeString("03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26")
 	if err != nil {
 		fmt.Println(err)
-
 	}
 	createArgs.CreatorPubKey = pubKeyBytes
-	createArgs.CreatorSig = generateCreateSig(counterSeed, 10, "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
+	hexCreatorSig := generateCreateSig(counterSeed, 10, "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
+
+	createArgs.CreatorSig, err = hex.DecodeString(hexCreatorSig)
+	if err != nil {
+		fmt.Println(err)
+	}
 	createArgs.Data = "Test Data"
 	createArgs.Type = "Test Asset"
 	createArgBytes, err := proto.Marshal(&createArgs)
@@ -88,7 +92,7 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	}
 }
 
-func generateCreateSig(CounterSeedStr string, amount int, data string, addr string, privateKeyStr string) []byte {
+func generateCreateSig(CounterSeedStr string, amount int, data string, addr string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
@@ -98,8 +102,7 @@ func generateCreateSig(CounterSeedStr string, amount int, data string, addr stri
 	fmt.Println(message)
 	messageBytes := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(messageBytes[:])
-
-	return sig.Serialize()
+	return hex.EncodeToString(sig.Serialize())
 }
 
 func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
@@ -110,7 +113,7 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	ownerBytes, _ := hex.DecodeString("0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7")
 	transferArgs.Owners = [][]byte{ownerBytes}
 	transferArgs.Output = int32(idx)
-	transferArgs.PopcodeSig = generatePossesSig(counterSeed, idx, "Test possess", [][]byte{ownerBytes}, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+	transferArgs.PopcodeSig = generatePossessSig(counterSeed, idx, "Test possess", [][]byte{ownerBytes}, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
 	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
 
@@ -120,7 +123,7 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	}
 }
 
-func generatePossesSig(CounterSeedStr string, outputIdx int, data string, newOwners [][]byte, privateKeyStr string) []byte {
+func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwners [][]byte, privateKeyStr string) []byte {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
@@ -135,7 +138,6 @@ func generatePossesSig(CounterSeedStr string, outputIdx int, data string, newOwn
 	mDigest := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(mDigest[:])
 	return sig.Serialize()
-
 }
 
 func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
@@ -171,7 +173,6 @@ func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int, a
 	mDigest := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(mDigest[:])
 	return sig.Serialize()
-
 }
 
 func combine(t *testing.T, stub *shim.MockStub, counterSeed string) {

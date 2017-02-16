@@ -21,6 +21,9 @@ type Pop struct {
 	Outputs []OTX.SecP256k1Output
 }
 
+
+
+
 func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig []byte) error {
 	otx := p.Outputs[idx]
 	if len(otx.Owners) > 0 {
@@ -58,12 +61,16 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 
 func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKeyBytes []byte, creatorSig []byte) error {
 
+//deserialize public key bytes into a public key object
 	creatorKey, err := btcec.ParsePubKey(creatorKeyBytes, btcec.S256())
 
 	if err != nil {
 		return fmt.Errorf("Invalid Creator key")
 	}
 
+
+//DER is a standard for serialization
+//parsing DER signature from bitcoin curve into a signature object
 	signature, err := btcec.ParseDERSignature(creatorSig, btcec.S256())
 	if err != nil {
 		fmt.Printf("Bad Creator signature encoding %+v", p)
@@ -73,8 +80,10 @@ func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKey
 
 	//FIXME add Value to the signature
 	message := hex.EncodeToString(p.Counter) + ":" + p.Address + ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
+	//construct string and then hash that string
 	messageBytes := sha256.Sum256([]byte(message))
 
+//try to verify the signature (most likely failure is that the wrong thing has been signed (maybe the counterseed changed or the message you signed and the message you verified are not the same))
 	success := signature.Verify(messageBytes[:], creatorKey)
 	if !success {
 		fmt.Printf("Invalid Creator Signature %+v", p)
