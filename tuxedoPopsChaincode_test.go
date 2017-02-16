@@ -77,7 +77,6 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	}
 	createArgs.CreatorPubKey = pubKeyBytes
 	hexCreatorSig := generateCreateSig(counterSeed, 10, "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
-
 	createArgs.CreatorSig, err = hex.DecodeString(hexCreatorSig)
 	if err != nil {
 		fmt.Println(err)
@@ -113,22 +112,34 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	ownerBytes, _ := hex.DecodeString("0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7")
 	transferArgs.Owners = [][]byte{ownerBytes}
 	transferArgs.Output = int32(idx)
-	transferArgs.PopcodeSig = generatePossessSig(counterSeed, idx, "Test possess", [][]byte{ownerBytes}, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+
+	//could use a discussion of what's going on with ownerBytes... why encoded to [][]byte? see comment on 137
+	ownerHex := hex.EncodeToString(ownerBytes)
+	hexPossessSig := generatePossessSig(counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+	var err error
+	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
 	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
 
-	_, err := stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
+	_, err = stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwners [][]byte, privateKeyStr string) []byte {
+func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
 
 	message := CounterSeedStr + ":" + strconv.FormatInt(int64(outputIdx), 10) + ":" + data
+
+	//from comment on 116...what is newOwnersHex?
+	newOwnersTmp, err := hex.DecodeString(newOwnersHex)
+	if err != nil {
+		fmt.Println(err)
+	}
+	newOwners := [][]byte{newOwnersTmp}
 
 	for _, newO := range newOwners {
 		message += ":"
@@ -137,8 +148,25 @@ func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOw
 	// fmt.Printf("Signed message %s \n", message)
 	mDigest := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(mDigest[:])
-	return sig.Serialize()
+	return hex.EncodeToString(sig.Serialize())
 }
+
+// func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwners [][]byte, privateKeyStr string) []byte {
+// 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
+
+// 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
+
+// 	message := CounterSeedStr + ":" + strconv.FormatInt(int64(outputIdx), 10) + ":" + data
+
+// 	for _, newO := range newOwners {
+// 		message += ":"
+// 		message += hex.EncodeToString(newO)
+// 	}
+// 	// fmt.Printf("Signed message %s \n", message)
+// 	mDigest := sha256.Sum256([]byte(message))
+// 	sig, _ := privKey.Sign(mDigest[:])
+// 	return sig.Serialize()
+// }
 
 func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	unitizeArgs := TuxedoPopsTX.Unitize{}
