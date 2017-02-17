@@ -85,7 +85,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &createArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected CreateTX protocol buffer")
-			return nil, errors.New("Invalid argument expected CreateTX protocol buffer")
+			return nil, fmt.Errorf("Invalid argument expected CreateTX protocol buffer %s", err.Error())
 		}
 
 		popcodebytes, err := stub.GetState(createArgs.Address)
@@ -155,7 +155,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &transferArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
-			return nil, errors.New("Invalid argument expected TransferOwners protocol buffer")
+			return nil, fmt.Errorf("Invalid argument expected TransferOwners protocol buffer %s", err.Error())
 		}
 		popcodebytes, err := stub.GetState(transferArgs.Address)
 		if err != nil {
@@ -184,7 +184,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &unitizeArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Unitize protocol buffer")
-			return nil, errors.New("Invalid argument expected Unitize protocol buffer")
+			return nil, fmt.Errorf("Invalid argument expected Unitize protocol buffer %s", err.Error())
 		}
 		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
 		sourceAddress := hex.EncodeToString(popcodeKeyDigest[:20])
@@ -249,7 +249,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &combineArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Combine protocol buffer")
-			return nil, errors.New("Invalid argument expected Combine protocol buffer")
+			return nil, fmt.Errorf("Invalid argument expected Combine protocol buffer %s", err.Error())
 		}
 
 		popcode := Pop.Pop{}
