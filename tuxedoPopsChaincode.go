@@ -88,7 +88,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, fmt.Errorf("Invalid argument expected CreateTX protocol buffer %s", err.Error())
 		}
 
-		popcodebytes, err := stub.GetState(createArgs.Address)
+		popcodebytes, err := stub.GetState("Popcode:" + createArgs.Address)
 
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
@@ -144,7 +144,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		sigHash := sha256.Sum256(createArgs.CreatorSig[:])
 		cacheIndex := hex.EncodeToString(sigHash[:])
 		txCache.Cache[cacheIndex] = true
-		err = stub.PutState(createArgs.Address, popcode.ToBytes())
+		err = stub.PutState("Popcode:"+createArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
@@ -157,7 +157,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected TransferOwners protocol buffer %s", err.Error())
 		}
-		popcodebytes, err := stub.GetState(transferArgs.Address)
+		popcodebytes, err := stub.GetState("Popcode:" + transferArgs.Address)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
@@ -174,7 +174,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		err = stub.PutState(transferArgs.Address, popcode.ToBytes())
+		err = stub.PutState("Popcode:"+transferArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
@@ -188,7 +188,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
 		sourceAddress := hex.EncodeToString(popcodeKeyDigest[:20])
-		sourcePopcodeBytes, err := stub.GetState(sourceAddress)
+		sourcePopcodeBytes, err := stub.GetState("Popcode:" + sourceAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
@@ -204,7 +204,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, errors.New("Could not get Popcode State")
 		}
 		destAddress := unitizeArgs.DestAddress
-		destPopcodeBytes, err := stub.GetState(destAddress)
+		destPopcodeBytes, err := stub.GetState("Popcode:" + destAddress)
 		if err != nil {
 			return nil, errors.New("Could not get Popcode State")
 		}
@@ -233,12 +233,12 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			convertedAmounts[i] = int(destAmount)
 		}
 		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data, &destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
-		err = stub.PutState(sourceAddress, sourcePopcode.ToBytes())
+		err = stub.PutState("Popcode:"+sourceAddress, sourcePopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		err = stub.PutState(destAddress, destPopcode.ToBytes())
+		err = stub.PutState("Popcode:"+destAddress, destPopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
@@ -253,7 +253,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 
 		popcode := Pop.Pop{}
-		popcodeBytes, err := stub.GetState(combineArgs.Address)
+		popcodeBytes, err := stub.GetState("Popcode:" + combineArgs.Address)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
@@ -271,7 +271,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 
 		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), combineArgs.Type, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
-		err = stub.PutState(combineArgs.Address, popcode.ToBytes())
+		err = stub.PutState("Popcode:"+combineArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
@@ -316,7 +316,7 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 
 		address := args[0]
 		popcode := Pop.Pop{}
-		popcodeBytes, err := stub.GetState(address)
+		popcodeBytes, err := stub.GetState("Popcode:" + address)
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
