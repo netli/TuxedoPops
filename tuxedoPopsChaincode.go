@@ -334,9 +334,7 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 		}
 		popcode.FromBytes(popcodeBytes)
 		return popcode.ToJSON(), nil
-
 	}
-
 	return nil, nil
 }
 
