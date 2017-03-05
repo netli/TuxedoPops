@@ -36,7 +36,7 @@ message Combine{
     string Address =1;
     repeated CombineSources sources=2;
     int32 Amount =3; 
-    string Type =4;
+    string Recipe =4;
     bytes CreatorPubKey =5;
     bytes CreatorSig =6;
     repeated bytes OwnerSigs =7;
@@ -49,4 +49,18 @@ message Combine{
 message CombineSources{
  int32 SourceOutput =1;
  int32 SourceAmount =2;
+}
+
+message ReceipeIngredients{
+    int32 Numerator = 1;
+    int32 Denominator =2;
+    string Type =3;
+}
+
+message Recipe{
+    string RecipeName =1;
+    string CreatedType =2;
+    repeated ReceipeIngredients ingredients =3;
+
+    
 }

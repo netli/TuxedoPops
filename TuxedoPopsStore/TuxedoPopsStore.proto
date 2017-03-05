@@ -20,7 +20,18 @@ message OTX{
    int64 Amount = 3;
    string Type = 4;
    string Data = 5; 
-   bytes Creator =6;
-   bytes PrevCounter = 7;
+   string Recipe = 6;
+   bytes Creator =7;
+   bytes PrevCounter = 8;
+}
 
+message Ingedient{
+  int64 Numerator =1;
+  int64 Denominator =2;
+  string Type =3;
+  }
+message Recipe{
+  string CreatedType =1;
+  repeated Ingedient Ingrediants =2;
+  bytes Creator =3;
 }
