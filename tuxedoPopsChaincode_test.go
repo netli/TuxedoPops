@@ -8,8 +8,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/skuchain/TuxedoPops/Pop"
+	txcache "github.com/skuchain/TuxedoPops/TXCache"
 	"github.com/skuchain/TuxedoPops/TuxedoPopsTX"
-	txcache "github.com/skuchain/tuxpops2/TXCache"
 
 	"encoding/hex"
 	"encoding/json"
@@ -238,7 +238,7 @@ func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int, a
 
 func combine(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	combineArgs := TuxedoPopsTX.Combine{}
-	combineArgs.Type = "Test Combined Asset"
+	combineArgs.Recipe = "Test Combined Asset"
 	combineArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
 	combineArgs.CreatorPubKey, _ = hex.DecodeString("03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26")
 	// combineArgs.CreatorSig =
@@ -333,12 +333,12 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 		if err != nil {
 			t.Errorf("query failure\n")
 		}
-		pop := Pop.JSONPop{}
+		pop := Pop.Pop{}
 		json.Unmarshal(bytes, &pop)
 		counter := pop.Counter
 
 		//mint transaction with keys and counterseed
-		altMint(t, stub, keys, counter)
+		altMint(t, stub, keys, hex.EncodeToString(counter))
 
 		//check counterseed
 		counterseed, err := stub.GetState("CounterSeed")
