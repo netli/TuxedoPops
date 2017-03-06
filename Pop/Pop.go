@@ -197,7 +197,7 @@ type SourceOutput interface {
 	Amount() int
 }
 
-func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte, createdAmount int, assetType string, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
+func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte, createdAmount int, recipe TuxedoPopsStore.Recipe, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
 
 	pubkey, err := btcec.ParsePubKey(PopPubKey, btcec.S256())
 
@@ -261,7 +261,7 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		fmt.Println("Invalid creator signature")
 		return fmt.Errorf("Invalid creator signature")
 	}
-	output := OTX.New(creatorPublicKey, createdAmount, assetType, data, p.Counter)
+	output := OTX.New(creatorPublicKey, createdAmount, recipe.CreatedType, data, p.Counter)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]

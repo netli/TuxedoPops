@@ -268,13 +268,29 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		popcode.FromBytes(popcodeBytes)
 
+		recipeBytes, err := stub.GetState("Recipe:" + combineArgs.Recipe)
+
+		if err != nil {
+			fmt.Println("Could not get Recipe State")
+			return nil, errors.New("Could not get Recipe State")
+		}
+		if len(recipeBytes) == 0 {
+			fmt.Printf("Recipe %s not registered", combineArgs.Recipe)
+			return nil, fmt.Errorf("Recipe %s already registered", combineArgs.Recipe)
+		}
+		recipe := TuxedoPopsStore.Recipe{}
+		err = proto.Unmarshal(recipeBytes, &recipe)
+		if err != nil {
+			return nil, fmt.Errorf("Could not deserialize Recipe %s", combineArgs.Recipe)
+		}
+
 		sources := make([]Pop.SourceOutput, len(combineArgs.Sources))
 
 		for i, v := range combineArgs.Sources {
 			sources[i] = v
 		}
 
-		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), combineArgs.Recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
+		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
 		err = stub.PutState("Popcode:"+combineArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
@@ -290,8 +306,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		recipeBytes, err := stub.GetState("Recipe:" + recipeArgs.RecipeName)
 		if err != nil {
-			fmt.Println("Could not get Popcode State")
-			return nil, errors.New("Could not get Popcode State")
+			fmt.Println("Could not get Recipe State")
+			return nil, errors.New("Could not get Recipe State")
 		}
 		if len(recipeBytes) != 0 {
 			fmt.Printf("Recipe %s already registered", recipeArgs.RecipeName)
