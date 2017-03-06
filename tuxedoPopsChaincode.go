@@ -17,10 +17,14 @@ import (
 
 	"errors"
 
+	"strconv"
+
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/skuchain/TuxedoPops/Pop"
 	txcache "github.com/skuchain/TuxedoPops/TXCache"
+	"github.com/skuchain/TuxedoPops/TuxedoPopsStore"
 	"github.com/skuchain/TuxedoPops/TuxedoPopsTX"
 )
 
@@ -270,13 +274,72 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			sources[i] = v
 		}
 
-		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), combineArgs.Type, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
+		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), combineArgs.Recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
 		err = stub.PutState("Popcode:"+combineArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
 		}
 
+	case "recipe":
+		recipeArgs := TuxedoPopsTX.Recipe{}
+		err = proto.Unmarshal(argsBytes, &recipeArgs)
+		if err != nil {
+			fmt.Println("Invalid argument expected Recipe protocol buffer")
+			return nil, fmt.Errorf("Invalid argument expected Recipe protocol buffer %s", err.Error())
+		}
+		recipeBytes, err := stub.GetState("Recipe:" + recipeArgs.RecipeName)
+		if err != nil {
+			fmt.Println("Could not get Popcode State")
+			return nil, errors.New("Could not get Popcode State")
+		}
+		if len(recipeBytes) != 0 {
+			fmt.Printf("Recipe %s already registered", recipeArgs.RecipeName)
+			return nil, fmt.Errorf("Recipe %s already registered", recipeArgs.RecipeName)
+		}
+
+		creatorPubKey, err := btcec.ParsePubKey(recipeArgs.CreatorPubKey, btcec.S256())
+		if err != nil {
+			return nil, fmt.Errorf("Could not deserialize Creator Pub Key %v", recipeArgs.CreatorPubKey)
+		}
+
+		creatorSig, err := btcec.ParseDERSignature(recipeArgs.CreatorSig, btcec.S256())
+
+		if err != nil {
+			return nil, fmt.Errorf("Could not deserialize Creator Signature %v", recipeArgs.CreatorSig)
+		}
+
+		message := recipeArgs.RecipeName + ":" + recipeArgs.CreatedType
+		for _, ingredient := range recipeArgs.Ingredients {
+			message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" + strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
+		}
+		messageBytes := sha256.Sum256([]byte(message))
+		success := creatorSig.Verify(messageBytes[:], creatorPubKey)
+		if !success {
+			fmt.Printf("Invalid Creator Signature %+v", creatorSig)
+			return nil, fmt.Errorf("Invalid Creator Signature %+v", creatorSig)
+		}
+
+		recStore := TuxedoPopsStore.Recipe{}
+		recStore.CreatedType = recipeArgs.CreatedType
+		recStore.Creator = recipeArgs.CreatorPubKey
+		for _, ingredient := range recipeArgs.Ingredients {
+			ingredientStore := TuxedoPopsStore.Ingedient{}
+			ingredientStore.Numerator = int64(ingredient.Numerator)
+			ingredientStore.Denominator = int64(ingredient.Denominator)
+			ingredientStore.Type = ingredient.Type
+			recStore.Ingrediants = append(recStore.Ingrediants, &ingredientStore)
+		}
+		recStoreBytes, err := proto.Marshal(&recStore)
+		if err != nil {
+			fmt.Printf("Recipe Store Serialization error")
+			return nil, fmt.Errorf("Recipe Store Serialization Erropr")
+		}
+		err = stub.PutState("Recipe:"+recipeArgs.RecipeName, recStoreBytes)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
 	default:
 		fmt.Printf("Invalid function type")
 		return nil, fmt.Errorf("Invalid function type")

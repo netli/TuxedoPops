@@ -17,7 +17,7 @@ It has these top-level messages:
 	ReceipeIngredients
 	Recipe
 */
-package tuxedoPopsTX
+package TuxedoPopsTX
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
@@ -117,9 +117,11 @@ func (m *ReceipeIngredients) String() string { return proto.CompactTextString(m)
 func (*ReceipeIngredients) ProtoMessage()    {}
 
 type Recipe struct {
-	RecipeName  string                `protobuf:"bytes,1,opt,name=RecipeName" json:"RecipeName,omitempty"`
-	CreatedType string                `protobuf:"bytes,2,opt,name=CreatedType" json:"CreatedType,omitempty"`
-	Ingredients []*ReceipeIngredients `protobuf:"bytes,3,rep,name=ingredients" json:"ingredients,omitempty"`
+	RecipeName    string                `protobuf:"bytes,1,opt,name=RecipeName" json:"RecipeName,omitempty"`
+	CreatedType   string                `protobuf:"bytes,2,opt,name=CreatedType" json:"CreatedType,omitempty"`
+	CreatorPubKey []byte                `protobuf:"bytes,3,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
+	CreatorSig    []byte                `protobuf:"bytes,4,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
+	Ingredients   []*ReceipeIngredients `protobuf:"bytes,5,rep,name=ingredients" json:"ingredients,omitempty"`
 }
 
 func (m *Recipe) Reset()         { *m = Recipe{} }

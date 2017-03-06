@@ -60,7 +60,9 @@ message ReceipeIngredients{
 message Recipe{
     string RecipeName =1;
     string CreatedType =2;
-    repeated ReceipeIngredients ingredients =3;
+    bytes CreatorPubKey =3;
+    bytes CreatorSig =4;
+    repeated ReceipeIngredients ingredients =5;
 
     
 }
