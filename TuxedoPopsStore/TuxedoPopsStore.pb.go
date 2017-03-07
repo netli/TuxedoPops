@@ -11,7 +11,7 @@ It is generated from these files:
 It has these top-level messages:
 	TuxedoPops
 	OTX
-	Ingedient
+	Ingredient
 	Recipe
 */
 package TuxedoPopsStore
@@ -57,29 +57,29 @@ func (m *OTX) Reset()         { *m = OTX{} }
 func (m *OTX) String() string { return proto.CompactTextString(m) }
 func (*OTX) ProtoMessage()    {}
 
-type Ingedient struct {
+type Ingredient struct {
 	Numerator   int64  `protobuf:"varint,1,opt,name=Numerator" json:"Numerator,omitempty"`
 	Denominator int64  `protobuf:"varint,2,opt,name=Denominator" json:"Denominator,omitempty"`
 	Type        string `protobuf:"bytes,3,opt,name=Type" json:"Type,omitempty"`
 }
 
-func (m *Ingedient) Reset()         { *m = Ingedient{} }
-func (m *Ingedient) String() string { return proto.CompactTextString(m) }
-func (*Ingedient) ProtoMessage()    {}
+func (m *Ingredient) Reset()         { *m = Ingredient{} }
+func (m *Ingredient) String() string { return proto.CompactTextString(m) }
+func (*Ingredient) ProtoMessage()    {}
 
 type Recipe struct {
-	CreatedType string       `protobuf:"bytes,1,opt,name=CreatedType" json:"CreatedType,omitempty"`
-	Ingrediants []*Ingedient `protobuf:"bytes,2,rep,name=Ingrediants" json:"Ingrediants,omitempty"`
-	Creator     []byte       `protobuf:"bytes,3,opt,name=Creator,proto3" json:"Creator,omitempty"`
+	CreatedType string        `protobuf:"bytes,1,opt,name=CreatedType" json:"CreatedType,omitempty"`
+	Ingredients []*Ingredient `protobuf:"bytes,2,rep,name=Ingredients" json:"Ingredients,omitempty"`
+	Creator     []byte        `protobuf:"bytes,3,opt,name=Creator,proto3" json:"Creator,omitempty"`
 }
 
 func (m *Recipe) Reset()         { *m = Recipe{} }
 func (m *Recipe) String() string { return proto.CompactTextString(m) }
 func (*Recipe) ProtoMessage()    {}
 
-func (m *Recipe) GetIngrediants() []*Ingedient {
+func (m *Recipe) GetIngredients() []*Ingredient {
 	if m != nil {
-		return m.Ingrediants
+		return m.Ingredients
 	}
 	return nil
 }

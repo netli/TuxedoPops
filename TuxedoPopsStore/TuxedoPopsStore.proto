@@ -25,13 +25,14 @@ message OTX{
    bytes PrevCounter = 8;
 }
 
-message Ingedient{
+message Ingredient{
   int64 Numerator =1;
   int64 Denominator =2;
   string Type =3;
   }
+
 message Recipe{
   string CreatedType =1;
-  repeated Ingedient Ingrediants =2;
+  repeated Ingredient Ingredients =2;
   bytes Creator =3;
 }

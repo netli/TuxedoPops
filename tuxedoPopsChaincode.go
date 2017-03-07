@@ -342,11 +342,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		recStore.CreatedType = recipeArgs.CreatedType
 		recStore.Creator = recipeArgs.CreatorPubKey
 		for _, ingredient := range recipeArgs.Ingredients {
-			ingredientStore := TuxedoPopsStore.Ingedient{}
+			ingredientStore := TuxedoPopsStore.Ingredient{}
 			ingredientStore.Numerator = int64(ingredient.Numerator)
 			ingredientStore.Denominator = int64(ingredient.Denominator)
 			ingredientStore.Type = ingredient.Type
-			recStore.Ingrediants = append(recStore.Ingrediants, &ingredientStore)
+			recStore.Ingredients = append(recStore.Ingredients, &ingredientStore)
 		}
 		recStoreBytes, err := proto.Marshal(&recStore)
 		if err != nil {
