@@ -51,7 +51,7 @@ message CombineSources{
  int32 SourceAmount =2;
 }
 
-message ReceipeIngredients{
+message Ingredient{
     int32 Numerator = 1;
     int32 Denominator =2;
     string Type =3;
@@ -62,7 +62,7 @@ message Recipe{
     string CreatedType =2;
     bytes CreatorPubKey =3;
     bytes CreatorSig =4;
-    repeated ReceipeIngredients ingredients =5;
+    repeated Ingredient Ingredients =5;
 
     
 }

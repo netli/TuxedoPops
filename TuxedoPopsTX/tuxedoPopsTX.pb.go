@@ -14,7 +14,7 @@ It has these top-level messages:
 	Unitize
 	Combine
 	CombineSources
-	ReceipeIngredients
+	Ingredient
 	Recipe
 */
 package TuxedoPopsTX
@@ -106,29 +106,29 @@ func (*CombineSources) ProtoMessage()    {}
 func (m *CombineSources) Amount() int    { return int(m.SourceAmount) }
 func (m *CombineSources) Idx() int       { return int(m.SourceOutput) }
 
-type ReceipeIngredients struct {
+type Ingredient struct {
 	Numerator   int32  `protobuf:"varint,1,opt,name=Numerator" json:"Numerator,omitempty"`
 	Denominator int32  `protobuf:"varint,2,opt,name=Denominator" json:"Denominator,omitempty"`
 	Type        string `protobuf:"bytes,3,opt,name=Type" json:"Type,omitempty"`
 }
 
-func (m *ReceipeIngredients) Reset()         { *m = ReceipeIngredients{} }
-func (m *ReceipeIngredients) String() string { return proto.CompactTextString(m) }
-func (*ReceipeIngredients) ProtoMessage()    {}
+func (m *Ingredient) Reset()         { *m = Ingredient{} }
+func (m *Ingredient) String() string { return proto.CompactTextString(m) }
+func (*Ingredient) ProtoMessage()    {}
 
 type Recipe struct {
-	RecipeName    string                `protobuf:"bytes,1,opt,name=RecipeName" json:"RecipeName,omitempty"`
-	CreatedType   string                `protobuf:"bytes,2,opt,name=CreatedType" json:"CreatedType,omitempty"`
-	CreatorPubKey []byte                `protobuf:"bytes,3,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
-	CreatorSig    []byte                `protobuf:"bytes,4,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
-	Ingredients   []*ReceipeIngredients `protobuf:"bytes,5,rep,name=ingredients" json:"ingredients,omitempty"`
+	RecipeName    string        `protobuf:"bytes,1,opt,name=RecipeName" json:"RecipeName,omitempty"`
+	CreatedType   string        `protobuf:"bytes,2,opt,name=CreatedType" json:"CreatedType,omitempty"`
+	CreatorPubKey []byte        `protobuf:"bytes,3,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
+	CreatorSig    []byte        `protobuf:"bytes,4,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
+	Ingredients   []*Ingredient `protobuf:"bytes,5,rep,name=Ingredients" json:"Ingredients,omitempty"`
 }
 
 func (m *Recipe) Reset()         { *m = Recipe{} }
 func (m *Recipe) String() string { return proto.CompactTextString(m) }
 func (*Recipe) ProtoMessage()    {}
 
-func (m *Recipe) GetIngredients() []*ReceipeIngredients {
+func (m *Recipe) GetIngredients() []*Ingredient {
 	if m != nil {
 		return m.Ingredients
 	}

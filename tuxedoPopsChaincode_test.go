@@ -132,7 +132,7 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed strin
 */
 
 func generateRecipeSig(recipeName string, createdType string,
-	ingredients []*TuxedoPopsTX.ReceipeIngredients, privateKeyStr string) string {
+	ingredients []*TuxedoPopsTX.Ingredient, privateKeyStr string) string {
 
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
@@ -155,12 +155,12 @@ func registerRecipe(t *testing.T, stub *shim.MockStub) {
 	recipeArgs.RecipeName = "test recipe"
 	recipeArgs.CreatedType = "type"
 	recipeArgs.CreatorPubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-	test := make([]*TuxedoPopsTX.ReceipeIngredients, 2)
-	test[0] = new(TuxedoPopsTX.ReceipeIngredients)
+	test := make([]*TuxedoPopsTX.Ingredient, 2)
+	test[0] = new(TuxedoPopsTX.Ingredient)
 	test[0].Denominator = 2
 	test[0].Numerator = 1
 	test[0].Type = "type A"
-	test[1] = new(TuxedoPopsTX.ReceipeIngredients)
+	test[1] = new(TuxedoPopsTX.Ingredient)
 	test[1].Denominator = 2
 	test[1].Numerator = 1
 	test[1].Type = "type B"
