@@ -123,8 +123,63 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed strin
 	}
 }
 
-func generateCreateSig(CounterSeedStr string, amount int, assetType string, data string, addr string, privateKeyStr string) string {
+/*
+	message := recipeArgs.RecipeName + ":" + recipeArgs.CreatedType
+	for _, ingredient := range recipeArgs.Ingredients {
+		message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" +
+			strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
+	}
+*/
 
+func generateRecipeSig(recipeName string, createdType string,
+	ingredients []*TuxedoPopsTX.ReceipeIngredients, privateKeyStr string) string {
+
+	privKeyByte, _ := hex.DecodeString(privateKeyStr)
+
+	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
+
+	message := recipeName + ":" + createdType
+	for _, ingredient := range ingredients {
+		message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" +
+			strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
+	}
+	fmt.Println("Signed Message")
+	fmt.Println(message)
+	messageBytes := sha256.Sum256([]byte(message))
+	sig, _ := privKey.Sign(messageBytes[:])
+	return hex.EncodeToString(sig.Serialize())
+}
+
+func registerRecipe(t *testing.T, stub *shim.MockStub) {
+	recipeArgs := TuxedoPopsTX.Recipe{}
+	recipeArgs.RecipeName = "test recipe"
+	recipeArgs.CreatedType = "type"
+	recipeArgs.CreatorPubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
+	test := make([]*TuxedoPopsTX.ReceipeIngredients, 2)
+	test[0] = new(TuxedoPopsTX.ReceipeIngredients)
+	test[0].Denominator = 2
+	test[0].Numerator = 1
+	test[0].Type = "type A"
+	test[1] = new(TuxedoPopsTX.ReceipeIngredients)
+	test[1].Denominator = 2
+	test[1].Numerator = 1
+	test[1].Type = "type B"
+	recipeArgs.Ingredients = test
+
+	sigHex := generateRecipeSig(recipeArgs.RecipeName, recipeArgs.CreatedType,
+		recipeArgs.Ingredients, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+
+	var err error
+	recipeArgs.CreatorSig, err = hex.DecodeString(sigHex)
+	recipeArgsBytes, _ := proto.Marshal(&recipeArgs)
+	recipeArgsBytesStr := hex.EncodeToString(recipeArgsBytes)
+	_, err = stub.MockInvoke("4", "recipe", []string{recipeArgsBytesStr})
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func generateCreateSig(CounterSeedStr string, amount int, assetType string, data string, addr string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
@@ -145,8 +200,6 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	ownerBytes, _ := hex.DecodeString("0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7")
 	transferArgs.Owners = [][]byte{ownerBytes}
 	transferArgs.Output = int32(idx)
-
-	//could use a discussion of what's going on with ownerBytes... why encoded to [][]byte? see comment on 137
 	ownerHex := hex.EncodeToString(ownerBytes)
 	hexPossessSig := generatePossessSig(counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
 	var err error
@@ -166,8 +219,6 @@ func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOw
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
 
 	message := CounterSeedStr + ":" + strconv.FormatInt(int64(outputIdx), 10) + ":" + data
-
-	//from comment on 116...what is newOwnersHex?
 	newOwnersTmp, err := hex.DecodeString(newOwnersHex)
 	if err != nil {
 		fmt.Println(err)
@@ -218,6 +269,7 @@ func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	_, err := stub.MockInvoke("4", "unitize", []string{unitizeArgsBytesStr})
 	if err != nil {
 		fmt.Println(err)
+		t.FailNow()
 	}
 }
 
@@ -361,6 +413,7 @@ func TestPopcodeChaincode(t *testing.T) {
 	stub := shim.NewMockStub("tuxedoPops", bst)
 	checkInit(t, stub, []string{"Hello World"})
 
+	registerRecipe(t, stub)
 	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921","Counter":"af5eef44907ccdcc33051d035f32f42de0d093fac2fd9d15923448f6af46bc43","Outputs":null}`)
 	mint(t, stub, "af5eef44907ccdcc33051d035f32f42de0d093fac2fd9d15923448f6af46bc43")
 	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921","Counter":"e91d1eab53d597e8e18bb9ebbbaec66d08187d7e14a4a58c8782610ce7c7a74b","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Data\",\"Type\":\"Test Asset\",\"PrevCounter\":\"af5eef44907ccdcc33051d035f32f42de0d093fac2fd9d15923448f6af46bc43\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)

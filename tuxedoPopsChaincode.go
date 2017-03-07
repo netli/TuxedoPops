@@ -309,6 +309,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Could not get Recipe State")
 			return nil, errors.New("Could not get Recipe State")
 		}
+		//if recipe already exists
 		if len(recipeBytes) != 0 {
 			fmt.Printf("Recipe %s already registered", recipeArgs.RecipeName)
 			return nil, fmt.Errorf("Recipe %s already registered", recipeArgs.RecipeName)
@@ -327,7 +328,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		message := recipeArgs.RecipeName + ":" + recipeArgs.CreatedType
 		for _, ingredient := range recipeArgs.Ingredients {
-			message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" + strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
+			message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" +
+				strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
 		}
 		messageBytes := sha256.Sum256([]byte(message))
 		success := creatorSig.Verify(messageBytes[:], creatorPubKey)
@@ -379,7 +381,6 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 }
 
 func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-
 	fmt.Printf("function: %s", function)
 	switch function {
 	case "balance":
