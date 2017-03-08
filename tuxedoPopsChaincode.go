@@ -36,8 +36,8 @@ type tuxedoPopsChaincode struct {
 
 func (t *tuxedoPopsChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if len(args) < 1 {
-		fmt.Printf("Invalid Init Arg")
-		return nil, errors.New("Invalid Init Arg")
+		fmt.Printf("Invalid Init Arg\n")
+		return nil, fmt.Errorf("Invalid Init Arg\n")
 	}
 
 	counterSeed := sha256.Sum256([]byte(args[0]))
@@ -45,8 +45,8 @@ func (t *tuxedoPopsChaincode) Init(stub shim.ChaincodeStubInterface, function st
 	err := stub.PutState("CounterSeed", counterSeed[:])
 
 	if err != nil {
-		fmt.Printf("Error initializing CounterSeed")
-		return nil, errors.New("Error initializing CounterSeed")
+		fmt.Printf("Error initializing CounterSeed\n")
+		return nil, fmt.Errorf("Error initializing CounterSeed (%s)\n", args[0])
 	}
 
 	return nil, nil
@@ -55,26 +55,26 @@ func (t *tuxedoPopsChaincode) Init(stub shim.ChaincodeStubInterface, function st
 func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if len(args) == 0 {
 		fmt.Println("Insufficient arguments found")
-		return nil, errors.New("Insufficient arguments found")
+		return nil, fmt.Errorf("Insufficient arguments found\n")
 	}
 
 	argsBytes, err := hex.DecodeString(args[0])
 	if err != nil {
-		fmt.Println("Invalid argument expected hex")
-		return nil, errors.New("Invalid argument expected hex")
+		fmt.Printf("Invalid argument (%v) expected hex\n", args[0])
+		return nil, fmt.Errorf("Invalid argument (%v) expected hex\n", args[0])
 	}
 
 	counterseed, err := stub.GetState("CounterSeed")
 	if err != nil {
-		fmt.Println(err)
-		return nil, err
+		fmt.Printf("error getting counterseed state\n")
+		return nil, fmt.Errorf("error getting counterseed state\n")
 	}
 	txCache := txcache.TXCache{}
 	txCacheBytes, err := stub.GetState("TxCache")
 
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, fmt.Errorf("error getting TxCache state\n")
 	}
 
 	if len(txCacheBytes) > 0 {
@@ -88,8 +88,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		createArgs := TuxedoPopsTX.CreateTX{}
 		err = proto.Unmarshal(argsBytes, &createArgs)
 		if err != nil {
-			fmt.Println("Invalid argument expected CreateTX protocol buffer")
-			return nil, fmt.Errorf("Invalid argument expected CreateTX protocol buffer %s", err.Error())
+			fmt.Printf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error())
+			return nil, fmt.Errorf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error())
 		}
 
 		popcodebytes, err := stub.GetState("Popcode:" + createArgs.Address)
@@ -307,23 +307,24 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		recipeBytes, err := stub.GetState("Recipe:" + recipeArgs.RecipeName)
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
-			return nil, errors.New("Could not get Recipe State")
+			return nil, fmt.Errorf("Could not get Recipe (%s) state\n", recipeArgs.RecipeName)
 		}
+
 		//if recipe already exists
 		if len(recipeBytes) != 0 {
-			fmt.Printf("Recipe %s already registered", recipeArgs.RecipeName)
-			return nil, fmt.Errorf("Recipe %s already registered", recipeArgs.RecipeName)
+			fmt.Printf("Recipe %s already registered\n", recipeArgs.RecipeName)
+			return nil, fmt.Errorf("Recipe %s already registered\n", recipeArgs.RecipeName)
 		}
 
 		creatorPubKey, err := btcec.ParsePubKey(recipeArgs.CreatorPubKey, btcec.S256())
 		if err != nil {
-			return nil, fmt.Errorf("Could not deserialize Creator Pub Key %v", recipeArgs.CreatorPubKey)
+			return nil, fmt.Errorf("Could not deserialize Creator Pub Key (%v)", recipeArgs.CreatorPubKey)
 		}
 
 		creatorSig, err := btcec.ParseDERSignature(recipeArgs.CreatorSig, btcec.S256())
 
 		if err != nil {
-			return nil, fmt.Errorf("Could not deserialize Creator Signature %v", recipeArgs.CreatorSig)
+			return nil, fmt.Errorf("Could not deserialize Creator Signature (%v)", recipeArgs.CreatorSig)
 		}
 
 		message := recipeArgs.RecipeName + ":" + recipeArgs.CreatedType
@@ -355,27 +356,27 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		err = stub.PutState("Recipe:"+recipeArgs.RecipeName, recStoreBytes)
 		if err != nil {
-			fmt.Printf(err.Error())
-			return nil, err
+			fmt.Printf("error putting recipe state to ledger: (%s)\n", err.Error())
+			return nil, fmt.Errorf("error putting recipe state to ledger: (%s)\n", err.Error())
 		}
 	default:
-		fmt.Printf("Invalid function type")
-		return nil, fmt.Errorf("Invalid function type")
+		fmt.Printf("Invalid function type (%s)", function)
+		return nil, fmt.Errorf("Invalid function type (%s)", function)
 	}
 	txCacheBytes, err = proto.Marshal(&txCache)
 	if err != nil {
-		fmt.Printf(err.Error())
-		return nil, err
+		fmt.Printf("error marshalling txCache in invoke: (%v)\n", err.Error())
+		return nil, fmt.Errorf("error marshalling txCache in invoke: (%v)\n", err.Error())
 	}
 	err = stub.PutState("TxCache", txCacheBytes)
 	if err != nil {
-		fmt.Printf(err.Error())
-		return nil, err
+		fmt.Printf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
+		return nil, fmt.Errorf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
 	}
 	err = stub.PutState("CounterSeed", counterseed)
 	if err != nil {
-		fmt.Printf(err.Error())
-		return nil, err
+		fmt.Printf("Error putting counterseed to ledger in invoke: (%v)\n", err.Error())
+		return nil, fmt.Errorf("Error putting counterseed to ledger in invoke: (%v)\n", err.Error())
 	}
 	return nil, nil
 }

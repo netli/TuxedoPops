@@ -123,14 +123,6 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed strin
 	}
 }
 
-/*
-	message := recipeArgs.RecipeName + ":" + recipeArgs.CreatedType
-	for _, ingredient := range recipeArgs.Ingredients {
-		message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" +
-			strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
-	}
-*/
-
 func generateRecipeSig(recipeName string, createdType string,
 	ingredients []*TuxedoPopsTX.Ingredient, privateKeyStr string) string {
 
