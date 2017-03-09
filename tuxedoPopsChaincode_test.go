@@ -135,8 +135,7 @@ func generateRecipeSig(recipeName string, createdType string,
 		message += ":" + strconv.FormatInt(int64(ingredient.Numerator), 10) + ":" +
 			strconv.FormatInt(int64(ingredient.Denominator), 10) + ":" + ingredient.Type
 	}
-	fmt.Println("Signed Message")
-	fmt.Println(message)
+	fmt.Printf("Signed Message: (%s)\n\n\n", message)
 	messageBytes := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(messageBytes[:])
 	return hex.EncodeToString(sig.Serialize())
@@ -163,11 +162,20 @@ func registerRecipe(t *testing.T, stub *shim.MockStub) {
 
 	var err error
 	recipeArgs.CreatorSig, err = hex.DecodeString(sigHex)
-	recipeArgsBytes, _ := proto.Marshal(&recipeArgs)
+	if err != nil {
+		fmt.Printf("error decoding creator signature in register recipe. ERR: (%v)", err.Error())
+		t.FailNow()
+	}
+	recipeArgsBytes, err := proto.Marshal(&recipeArgs)
+	if err != nil {
+		fmt.Printf("error marshalling recipeArgs in registerRecipe. ERR: (%s)\n", err.Error())
+		t.FailNow()
+	}
 	recipeArgsBytesStr := hex.EncodeToString(recipeArgsBytes)
 	_, err = stub.MockInvoke("4", "recipe", []string{recipeArgsBytesStr})
 	if err != nil {
 		fmt.Println(err)
+		t.Errorf("error invoking recipe: (%v)", err.Error())
 	}
 }
 
@@ -285,6 +293,7 @@ func combine(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	combineArgs.Recipe = "Test Combined Asset"
 	combineArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
 	combineArgs.CreatorPubKey, _ = hex.DecodeString("03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26")
+	combineArgs.Address = ""
 	// combineArgs.CreatorSig =
 
 }
@@ -416,6 +425,22 @@ func TestPopcodeChaincode(t *testing.T) {
 	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921","Counter":"afab4e267a433fe306d1da4608629ce9a280bde98f7004ff883383d65b9f5948","Outputs":["{\"Owners\":[\"0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7\"],\"Threshold\":1,\"Data\":\"Test possess\",\"Type\":\"Test Asset\",\"PrevCounter\":\"1adb7c0c1b464fb45860355bf8e711312c608d01202197e58116a424f74af254\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 	checkQuery(t, stub, "10734390011641497f489cb475743b8e50d429bb", `{"Address":"10734390011641497f489cb475743b8e50d429bb","Counter":"83b298acdf5d7231597ffb776c8f027877ca89cbafa7675a3f177619b0a9ad74","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Unitize\",\"Type\":\"Test Asset\",\"PrevCounter\":\"d3e41e748a7094cc520319623479f97dfb6aae0ea915940b72926384fe8d0e8c\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 	registerRecipe(t, stub)
+	function := "recipe"
+	bytes, err := stub.MockQuery(function, []string{"test recipe"})
+	if err != nil {
+		fmt.Printf("Query (%s) failed. ERR: %v", function, err.Error())
+		t.FailNow()
+	}
+	if bytes == nil {
+		fmt.Printf("Query (%s) failed to get value\n", function)
+		t.FailNow()
+	}
 
-	// checkCounterSeedChange(t, stub)
+	// fmt.Printf("recipe query: (%v)\n\n", hex.EncodeToString(bytes))
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(bytes, &jsonMap); err != nil {
+		fmt.Printf("error unmarshalling json string %s", bytes)
+		t.FailNow()
+	}
+	fmt.Printf("JSON: %s\n", jsonMap)
 }

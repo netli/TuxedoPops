@@ -11,7 +11,9 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"crypto/sha256"
 
@@ -298,6 +300,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 
 	case "recipe":
+		fmt.Fprintf(os.Stderr, "\nTHIS IS A TEST\n\n")
 		recipeArgs := TuxedoPopsTX.Recipe{}
 		err = proto.Unmarshal(argsBytes, &recipeArgs)
 		if err != nil {
@@ -335,8 +338,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		messageBytes := sha256.Sum256([]byte(message))
 		success := creatorSig.Verify(messageBytes[:], creatorPubKey)
 		if !success {
-			fmt.Printf("Invalid Creator Signature %+v", creatorSig)
-			return nil, fmt.Errorf("Invalid Creator Signature %+v", creatorSig)
+			// fmt.Printf("Invalid Creator Signature (%+v)\n", creatorSig)
+			return nil, fmt.Errorf("Invalid Creator Signature (%+v)\n", creatorSig)
 		}
 
 		recStore := TuxedoPopsStore.Recipe{}
@@ -351,10 +354,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		recStoreBytes, err := proto.Marshal(&recStore)
 		if err != nil {
-			fmt.Printf("Recipe Store Serialization error")
-			return nil, fmt.Errorf("Recipe Store Serialization Erropr")
+			fmt.Printf("Recipe Store Serialization error\n")
+			return nil, fmt.Errorf("Recipe Store Serialization Error\n")
 		}
-		err = stub.PutState("Recipe:"+recipeArgs.RecipeName, recStoreBytes)
+		fmt.Printf("PUTTING RECIPE (%s) TO LEDGER\n", recipeArgs.RecipeName)
+		err = stub.PutState("Recipe: "+recipeArgs.RecipeName, recStoreBytes)
 		if err != nil {
 			fmt.Printf("error putting recipe state to ledger: (%s)\n", err.Error())
 			return nil, fmt.Errorf("error putting recipe state to ledger: (%s)\n", err.Error())
@@ -415,6 +419,30 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 		}
 		popcode.FromBytes(popcodeBytes)
 		return popcode.ToJSON(), nil
+	case "recipe":
+		if len(args) != 1 {
+			return nil, fmt.Errorf("no argument specified\n")
+		}
+
+		recipe := TuxedoPopsStore.Recipe{}
+		recipeName := args[0]
+
+		recipeBytes, err := stub.GetState("Recipe: " + recipeName)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, fmt.Errorf("ERR: (%v)\n", err.Error())
+		}
+
+		if len(recipeBytes) == 0 {
+			return nil, fmt.Errorf("recipe (%s) does not exist\n", recipeName)
+		}
+
+		err = proto.Unmarshal(recipeBytes, &recipe)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, fmt.Errorf("ERR: (%v)", err.Error())
+		}
+		return json.Marshal(recipe)
 	}
 	return nil, nil
 }
