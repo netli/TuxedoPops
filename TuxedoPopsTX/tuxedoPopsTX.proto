@@ -41,7 +41,7 @@ message Combine{
     bytes CreatorSig =6;
     repeated bytes OwnerSigs =7;
     bytes PopcodePubKey =8;
-    bytes PopcodeSigs =9;
+    bytes PopcodeSig =9;
     string Data =10;
     
 }

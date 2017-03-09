@@ -197,8 +197,10 @@ type SourceOutput interface {
 	Amount() int
 }
 
-func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte, createdAmount int, recipe TuxedoPopsStore.Recipe, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
+func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte,
+	createdAmount int, recipe TuxedoPopsStore.Recipe, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
 
+	// create public key object from PopPubKey
 	pubkey, err := btcec.ParsePubKey(PopPubKey, btcec.S256())
 
 	p.PubKey = *pubkey
@@ -207,23 +209,25 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		return fmt.Errorf("Invalid Pop key")
 	}
 
+	//generate popcode address from public key object
 	keyDigest := sha256.Sum256(PopPubKey)
 	PopAddress := hex.EncodeToString(keyDigest[:20])
 	if PopAddress != p.Address {
 		return fmt.Errorf("Invalid Pop Public Key")
 	}
 
+	//create public key object from creatorPublicKeyBytes
 	creatorPublicKey, err := btcec.ParsePubKey(creatorPublicKeyBytes, btcec.S256())
 
 	if err != nil {
 		return fmt.Errorf("Invalid Creator key")
 	}
 
+	// generate message of which creatorSigBytes represents the signature
 	m := ""
 	for _, source := range sources {
 		m += ":" + strconv.FormatInt(int64(source.Idx()), 10)
 		m += ":" + strconv.FormatInt(int64(source.Amount()), 10)
-
 	}
 
 	m += ":" + strconv.FormatInt(int64(createdAmount), 10)
@@ -232,7 +236,7 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	mDigest := sha256.Sum256([]byte(m))
 
 	for _, source := range sources {
-
+		// call to verifyPopSigs for each source.
 		err = p.verifyPopSigs(source.Idx(), mDigest[:], ownerSigs, PopSig)
 		if err != nil {
 			return err
@@ -266,7 +270,6 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
 	return nil
-
 }
 
 func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]byte, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte) error {

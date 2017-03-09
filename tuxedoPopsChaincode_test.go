@@ -18,13 +18,13 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
-// Notes from Testing popcode
+// Notes fromessage Testing popcode
 // Public Key: 02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc
 // Private Key: 94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20
 // Hyperledger address hex 74ded2036e988fc56e3cff77a40c58239591e921
 // Hyperledger address Base58: 8sDMfw2Ti7YumfTkbf7RHMgSSSxuAmMFd2GS9wnjkUoX
 
-// Notes from Testing popcode2
+// Notes fromessage Testing popcode2
 // Public Key: 02cb6d65b04c4b84502015f918fe549e95cad4f3b899359a170d4d7d438363c0ce
 // Private Key: 60977f22a920c9aa18d58d12cb5e90594152d7aa724bcce21484dfd0f4490b58
 // Hyperledger address hex 10734390011641497f489cb475743b8e50d429bb
@@ -121,6 +121,26 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed strin
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+func generateCombineSig(sources []Pop.SourceOutput, amount int, data string, privateKeyStr string) string {
+	privKeyByte, _ := hex.DecodeString(privateKeyStr)
+
+	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
+
+	message := ""
+	for _, source := range sources {
+		message += ":" + strconv.FormatInt(int64(source.Idx()), 10)
+		message += ":" + strconv.FormatInt(int64(source.Amount()), 10)
+	}
+	message += ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
+
+	fmt.Println("Signed Message")
+	fmt.Println(message)
+	messageBytes := sha256.Sum256([]byte(message))
+	sig, _ := privKey.Sign(messageBytes[:])
+
+	return hex.EncodeToString(sig.Serialize())
 }
 
 func generateRecipeSig(recipeName string, createdType string,
@@ -320,7 +340,7 @@ func newPrivateKeyString() (string, error) {
 	return privKeyString, nil
 }
 
-//generates and returns SHA256 public key string from private key string input
+//generates and returns SHA256 public key string fromessage private key string input
 func newPubKeyString(privKeyString string) (string, error) {
 	privKeyBytes, err := hex.DecodeString(privKeyString)
 	if err != nil {
@@ -409,6 +429,8 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 	}
 }
 
+// func generateCombineSig(sources []Pop.SourceOutput, amount int, data string, privateKeyStr string) string {
+
 func TestPopcodeChaincode(t *testing.T) {
 	bst := new(tuxedoPopsChaincode)
 	stub := shim.NewMockStub("tuxedoPops", bst)
@@ -443,4 +465,10 @@ func TestPopcodeChaincode(t *testing.T) {
 		t.FailNow()
 	}
 	fmt.Printf("JSON: %s\n", jsonMap)
+	// checkCounterSeedChange(t, stub)
+
+	// test := make([]Pop.SourceOutput, 2)
+	// test[0] = new(Pop.SourceOutput)
+	// test[0].
+	// fmt.Printf("\nTEST SIG: (%s)\n\n", generateCombineSig(sources, 10, "test data", "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20"))
 }

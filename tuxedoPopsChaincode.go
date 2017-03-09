@@ -238,7 +238,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		for i, destAmount := range unitizeArgs.DestAmounts {
 			convertedAmounts[i] = int(destAmount)
 		}
-		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data, &destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
+		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data,
+			&destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
 		err = stub.PutState("Popcode:"+sourceAddress, sourcePopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
@@ -278,7 +279,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		if len(recipeBytes) == 0 {
 			fmt.Printf("Recipe %s not registered", combineArgs.Recipe)
-			return nil, fmt.Errorf("Recipe %s already registered", combineArgs.Recipe)
+			return nil, fmt.Errorf("Recipe %s is not registered", combineArgs.Recipe)
 		}
 		recipe := TuxedoPopsStore.Recipe{}
 		err = proto.Unmarshal(recipeBytes, &recipe)
@@ -292,7 +293,9 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			sources[i] = v
 		}
 
-		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSigs, int(combineArgs.Amount), recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
+		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSig,
+			int(combineArgs.Amount), recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
+
 		err = stub.PutState("Popcode:"+combineArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
@@ -307,7 +310,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Invalid argument expected Recipe protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected Recipe protocol buffer %s", err.Error())
 		}
-		recipeBytes, err := stub.GetState("Recipe:" + recipeArgs.RecipeName)
+		recipeBytes, err := stub.GetState("Recipe: " + recipeArgs.RecipeName)
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
 			return nil, fmt.Errorf("Could not get Recipe (%s) state\n", recipeArgs.RecipeName)
