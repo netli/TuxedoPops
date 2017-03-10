@@ -271,7 +271,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		popcode.FromBytes(popcodeBytes)
 
-		recipeBytes, err := stub.GetState("Recipe:" + combineArgs.Recipe)
+		recipeBytes, err := stub.GetState("Recipe: " + combineArgs.Recipe)
 
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
