@@ -259,8 +259,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, fmt.Errorf("Invalid argument expected Combine protocol buffer %s", err.Error())
 		}
 
+		popcodeKeyDigest := sha256.Sum256(combineArgs.PopcodePubKey)
+		combineAddress := hex.EncodeToString(popcodeKeyDigest[:20])
+
 		popcode := Pop.Pop{}
-		popcodeBytes, err := stub.GetState("Popcode:" + combineArgs.Address)
+		popcodeBytes, err := stub.GetState("Popcode:" + combineAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
@@ -293,10 +296,15 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			sources[i] = v
 		}
 
-		popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSig,
+		err = popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSig,
 			int(combineArgs.Amount), recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
 
-		err = stub.PutState("Popcode:"+combineArgs.Address, popcode.ToBytes())
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+
+		err = stub.PutState("Popcode:"+combineAddress, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
