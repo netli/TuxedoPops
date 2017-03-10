@@ -318,8 +318,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		//if recipe already exists
 		if len(recipeBytes) != 0 {
-			fmt.Printf("Recipe %s already registered\n", recipeArgs.RecipeName)
-			return nil, fmt.Errorf("Recipe %s already registered\n", recipeArgs.RecipeName)
+			fmt.Printf("Recipe (%s) already registered\n", recipeArgs.RecipeName)
+			return nil, fmt.Errorf("Recipe (%s) already registered\n", recipeArgs.RecipeName)
 		}
 
 		creatorPubKey, err := btcec.ParsePubKey(recipeArgs.CreatorPubKey, btcec.S256())

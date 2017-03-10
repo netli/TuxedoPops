@@ -223,20 +223,17 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		return fmt.Errorf("Invalid Creator key")
 	}
 
-	// generate message of which creatorSigBytes represents the signature
+	//creatorSigBytes should be the signature of the following message
 	m := ""
 	for _, source := range sources {
 		m += ":" + strconv.FormatInt(int64(source.Idx()), 10)
 		m += ":" + strconv.FormatInt(int64(source.Amount()), 10)
 	}
-
 	m += ":" + strconv.FormatInt(int64(createdAmount), 10)
 	m += ":" + data
-
 	mDigest := sha256.Sum256([]byte(m))
 
 	for _, source := range sources {
-		// call to verifyPopSigs for each source.
 		err = p.verifyPopSigs(source.Idx(), mDigest[:], ownerSigs, PopSig)
 		if err != nil {
 			return err

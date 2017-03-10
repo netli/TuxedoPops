@@ -419,6 +419,15 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 			t.Error("error retrieving counterseed through call to getState")
 		}
 
+		txCache := txcache.TXCache{}
+		txCacheBytes, err := stub.GetState("TxCache")
+		if err != nil {
+			fmt.Println(err)
+		}
+		proto.Unmarshal(txCacheBytes, &txCache)
+
+		fmt.Printf("\n\nCOUNTERSEEDSTRING: (%s)\ni: (%d)\nTXCACHELEN: (%d)\n\n\n", hex.EncodeToString(counterseed), i, len(txCache.Cache))
+
 		//check for correct counterSeed value
 		if (i < 101) && (hex.EncodeToString(counterseed) != hex.EncodeToString(originalCounterseed)) {
 			t.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n", hex.EncodeToString(counterseed), hex.EncodeToString(originalCounterseed))
@@ -465,7 +474,7 @@ func TestPopcodeChaincode(t *testing.T) {
 		t.FailNow()
 	}
 	fmt.Printf("JSON: %s\n", jsonMap)
-	// checkCounterSeedChange(t, stub)
+	checkCounterSeedChange(t, stub)
 
 	// test := make([]Pop.SourceOutput, 2)
 	// test[0] = new(Pop.SourceOutput)
