@@ -82,8 +82,8 @@ func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKey
 	//try to verify the signature (most likely failure is that the wrong thing has been signed (maybe the counterseed changed or the message you signed and the message you verified are not the same))
 	success := signature.Verify(messageBytes[:], creatorKey)
 	if !success {
-		fmt.Printf("Invalid Creator Signature %+v", p)
-		return fmt.Errorf("Invalid Creator Signature %+v", p)
+		fmt.Printf("Invalid Creator Signature %s \n Pubkey:%v \n ", message, creatorKey)
+		return fmt.Errorf("Invalid Creator Signature %s\n Pubkey:%v ", message, creatorKey)
 	}
 
 	output := OTX.New(creatorKey, amount, assetType, data, p.Counter)

@@ -362,8 +362,8 @@ func newAddress(pubKeyStr string) string {
 	hasher.Write(pubKeyBytes)
 	hashedPubKeyBytes := []byte{}
 	hashedPubKeyBytes = hasher.Sum(hashedPubKeyBytes)
-	hashedPubKeyString := hex.EncodeToString(hashedPubKeyBytes)
-	address := hashedPubKeyString[0:40]
+	hashedPubKeyString := hex.EncodeToString(hashedPubKeyBytes[0:20])
+	address := hashedPubKeyString
 	return address
 }
 
@@ -406,12 +406,14 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 		if err != nil {
 			t.Errorf("query failure\n")
 		}
-		pop := Pop.Pop{}
-		json.Unmarshal(bytes, &pop)
-		counter := pop.Counter
+		balanceResult := make(map[string]string)
+
+		json.Unmarshal(bytes, &balanceResult)
+		fmt.Println("Bracket Results")
+		fmt.Println(string(bytes))
 
 		//mint transaction with keys and counterseed
-		altMint(t, stub, keys, hex.EncodeToString(counter))
+		altMint(t, stub, keys, balanceResult["Counter"])
 
 		//check counterseed
 		counterseed, err := stub.GetState("CounterSeed")
@@ -431,9 +433,12 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 		//check for correct counterSeed value
 		if (i < 101) && (hex.EncodeToString(counterseed) != hex.EncodeToString(originalCounterseed)) {
 			t.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n", hex.EncodeToString(counterseed), hex.EncodeToString(originalCounterseed))
+			t.FailNow()
 		}
 		if expected := sha256.Sum256(originalCounterseed); i > 101 && (hex.EncodeToString(counterseed) != hex.EncodeToString(expected[:])) {
 			t.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n", hex.EncodeToString(counterseed), hex.EncodeToString(expected[:]))
+			t.FailNow()
+
 		}
 	}
 }
