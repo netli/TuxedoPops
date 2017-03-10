@@ -164,17 +164,14 @@ func generateRecipeSig(recipeName string, createdType string,
 func registerRecipe(t *testing.T, stub *shim.MockStub) {
 	recipeArgs := TuxedoPopsTX.Recipe{}
 	recipeArgs.RecipeName = "test recipe"
-	recipeArgs.CreatedType = "type"
+	recipeArgs.CreatedType = "B"
 	recipeArgs.CreatorPubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-	test := make([]*TuxedoPopsTX.Ingredient, 2)
+	test := make([]*TuxedoPopsTX.Ingredient, 1)
 	test[0] = new(TuxedoPopsTX.Ingredient)
-	test[0].Denominator = 2
+	test[0].Denominator = 1
 	test[0].Numerator = 1
-	test[0].Type = "type A"
-	test[1] = new(TuxedoPopsTX.Ingredient)
-	test[1].Denominator = 2
-	test[1].Numerator = 1
-	test[1].Type = "type B"
+	test[0].Type = "A"
+
 	recipeArgs.Ingredients = test
 
 	sigHex := generateRecipeSig(recipeArgs.RecipeName, recipeArgs.CreatedType,
@@ -308,15 +305,118 @@ func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int, a
 	return sig.Serialize()
 }
 
-func combine(t *testing.T, stub *shim.MockStub, counterSeed string) {
-	combineArgs := TuxedoPopsTX.Combine{}
-	combineArgs.Recipe = "Test Combined Asset"
-	combineArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-	combineArgs.CreatorPubKey, _ = hex.DecodeString("03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26")
-	combineArgs.Address = ""
-	// combineArgs.CreatorSig =
+func checkCombine(t *testing.T, stub *shim.MockStub) {
+	txCache := txcache.TXCache{}
+	txCacheBytes, err := stub.GetState("TxCache")
+	if err != nil {
+		fmt.Println(err)
+	}
+	proto.Unmarshal(txCacheBytes, &txCache)
 
+	//create a new set of keys
+	keys := new(keyInfo)
+	keys.privKeyStr, err = newPrivateKeyString()
+	if err != nil {
+		fmt.Printf("error generating private key: %v", err)
+	}
+	keys.pubKeyStr, err = newPubKeyString(keys.privKeyStr)
+	if err != nil {
+		fmt.Printf("error generating public key: %v", err)
+	}
+	keys.address = newAddress(keys.pubKeyStr)
+
+	//query balance to get counterSeed
+	bytes, err := stub.MockQuery("balance", []string{keys.address})
+	if err != nil {
+		t.Errorf("query failure\n")
+	}
+	balanceResult := make(map[string]string)
+	json.Unmarshal(bytes, &balanceResult)
+	fmt.Println("Bracket Results")
+	fmt.Println(string(bytes))
+	counter := balanceResult["Counter"]
+
+	//mint transaction with keys and counterseed
+	altMint(t, stub, keys, counter)
+
+	registerRecipe(t, stub)
+
+	//perform combination
+	//check counterseed
+	combineArgs := TuxedoPopsTX.Combine{}
+	combineArgs.Address = "ccd652f622d8d63127babb4c4e34f8c831136adc"
+	//Sources
+	combineArgs.Sources = make([]*TuxedoPopsTX.CombineSources, 1)
+	combineArgs.Sources[0] = new(TuxedoPopsTX.CombineSources)
+	combineArgs.Sources[0].SourceAmount = 10
+	combineArgs.Sources[0].SourceOutput = 0
+
+	combineArgs.Amount = 10
+	combineArgs.Recipe = "test recipe"
+	combineArgs.CreatorPubKey, _ = hex.DecodeString("0318b8d3f9d2889ee18dd8a48bfdb539ffff4b7498864e7071addd1edb225690e3")
+
+	creatorPrivKey, err := newPrivateKeyString()
+	if err != nil {
+		fmt.Printf("error generating private key: %v", err.Error())
+	}
+	sources := make([]Pop.SourceOutput, len(combineArgs.Sources))
+
+	for i, v := range combineArgs.Sources {
+		sources[i] = v
+	}
+
+	combineArgs.CreatorSig, err = hex.DecodeString(generateCombineSig(sources, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey))
+	if err != nil {
+		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
+		t.FailNow()
+	}
+
+	combineArgs.OwnerSigs = make([][]byte, 0)
+	combineArgs.PopcodePubKey, _ = hex.DecodeString(keys.pubKeyStr)
+	combineArgs.PopcodeSig, err = hex.DecodeString(generateCombineSig(sources, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr))
+	if err != nil {
+		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
+		t.FailNow()
+	}
+
+	combineArgs.Data = "test data"
+
+	combineArgsBytes, _ := proto.Marshal(&combineArgs)
+	combineArgsBytesStr := hex.EncodeToString(combineArgsBytes)
+
+	_, err = stub.MockInvoke("4", "combine", []string{combineArgsBytesStr})
+	if err != nil {
+		fmt.Printf("\nError invoking combine in checkCombine. ERR: (%s)", err.Error())
+		t.FailNow()
+	}
 }
+
+type Combine struct {
+	Address       string                         `protobuf:"bytes,1,opt,name=Address" json:"Address,omitempty"`
+	Sources       []*TuxedoPopsTX.CombineSources `protobuf:"bytes,2,rep,name=sources" json:"sources,omitempty"`
+	Amount        int32                          `protobuf:"varint,3,opt,name=Amount" json:"Amount,omitempty"`
+	Recipe        string                         `protobuf:"bytes,4,opt,name=Recipe" json:"Recipe,omitempty"`
+	CreatorPubKey []byte                         `protobuf:"bytes,5,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
+	CreatorSig    []byte                         `protobuf:"bytes,6,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
+	OwnerSigs     [][]byte                       `protobuf:"bytes,7,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`
+	PopcodePubKey []byte                         `protobuf:"bytes,8,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
+	PopcodeSig    []byte                         `protobuf:"bytes,9,opt,name=PopcodeSig,proto3" json:"PopcodeSig,omitempty"`
+	Data          string                         `protobuf:"bytes,10,opt,name=Data" json:"Data,omitempty"`
+}
+
+// func combine(t *testing.T, stub *shim.MockStub, counterSeed string) {
+// 	combineArgs := TuxedoPopsTX.Combine{}
+// 	combineArgs.Address = "ccd652f622d8d63127babb4c4e34f8c831136adc"
+// 	//Sources
+// 	combineArgs.Amount = 10
+// 	combineArgs.Recipe = "Test Recipe"
+// 	combineArgs.Recipe = "Test Combined Asset"
+// 	combineArgs.CreatorPubKey, _ = hex.DecodeString("0318b8d3f9d2889ee18dd8a48bfdb539ffff4b7498864e7071addd1edb225690e3")
+// 	// combineArgs.CreatorSig = generateCreateSig(CounterSeedStr string, amount int, assetType string, data string, addr string, privateKeyStr string)
+// 	OwnerSigs = new([]new([]byte))
+// 	combineArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
+// 	combineArgs.Data = "test data"
+// }
 
 /*
 	//To create new private and public keys
@@ -460,29 +560,27 @@ func TestPopcodeChaincode(t *testing.T) {
 	unitize(t, stub, "d3e41e748a7094cc520319623479f97dfb6aae0ea915940b72926384fe8d0e8c")
 	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921","Counter":"afab4e267a433fe306d1da4608629ce9a280bde98f7004ff883383d65b9f5948","Outputs":["{\"Owners\":[\"0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7\"],\"Threshold\":1,\"Data\":\"Test possess\",\"Type\":\"Test Asset\",\"PrevCounter\":\"1adb7c0c1b464fb45860355bf8e711312c608d01202197e58116a424f74af254\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 	checkQuery(t, stub, "10734390011641497f489cb475743b8e50d429bb", `{"Address":"10734390011641497f489cb475743b8e50d429bb","Counter":"83b298acdf5d7231597ffb776c8f027877ca89cbafa7675a3f177619b0a9ad74","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Unitize\",\"Type\":\"Test Asset\",\"PrevCounter\":\"d3e41e748a7094cc520319623479f97dfb6aae0ea915940b72926384fe8d0e8c\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
-	registerRecipe(t, stub)
-	function := "recipe"
-	bytes, err := stub.MockQuery(function, []string{"test recipe"})
-	if err != nil {
-		fmt.Printf("Query (%s) failed. ERR: %v", function, err.Error())
-		t.FailNow()
-	}
-	if bytes == nil {
-		fmt.Printf("Query (%s) failed to get value\n", function)
-		t.FailNow()
-	}
 
-	// fmt.Printf("recipe query: (%v)\n\n", hex.EncodeToString(bytes))
-	var jsonMap map[string]interface{}
-	if err := json.Unmarshal(bytes, &jsonMap); err != nil {
-		fmt.Printf("error unmarshalling json string %s", bytes)
-		t.FailNow()
-	}
-	fmt.Printf("JSON: %s\n", jsonMap)
-	checkCounterSeedChange(t, stub)
+	// registerRecipe(t, stub)
+	// function := "recipe"
+	// bytes, err := stub.MockQuery(function, []string{"test recipe"})
+	// if err != nil {
+	// 	fmt.Printf("Query (%s) failed. ERR: %v", function, err.Error())
+	// 	t.FailNow()
+	// }
+	// if bytes == nil {
+	// 	fmt.Printf("Query (%s) failed to get value\n", function)
+	// 	t.FailNow()
+	// }
 
-	// test := make([]Pop.SourceOutput, 2)
-	// test[0] = new(Pop.SourceOutput)
-	// test[0].
-	// fmt.Printf("\nTEST SIG: (%s)\n\n", generateCombineSig(sources, 10, "test data", "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20"))
+	// // fmt.Printf("recipe query: (%v)\n\n", hex.EncodeToString(bytes))
+	// var jsonMap map[string]interface{}
+	// if err := json.Unmarshal(bytes, &jsonMap); err != nil {
+	// 	fmt.Printf("error unmarshalling json string %s", bytes)
+	// 	t.FailNow()
+	// }
+	// fmt.Printf("JSON: %s\n", jsonMap)
+
+	// checkCounterSeedChange(t, stub)
+	checkCombine(t, stub)
 }
