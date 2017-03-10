@@ -233,6 +233,8 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	m += ":" + data
 	mDigest := sha256.Sum256([]byte(m))
 
+	sourceAmounts := make(map[string]int)
+
 	for _, source := range sources {
 		err = p.verifyPopSigs(source.Idx(), mDigest[:], ownerSigs, PopSig)
 		if err != nil {
@@ -249,6 +251,7 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 				p.Outputs = p.Outputs[:source.Idx()]
 			}
 		}
+		sourceAmounts[p.Outputs[source.Idx()].Type] += source.Amount()
 	}
 
 	signature, err := btcec.ParseDERSignature(creatorSigBytes, btcec.S256())
@@ -262,6 +265,15 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		fmt.Println("Invalid creator signature")
 		return fmt.Errorf("Invalid creator signature")
 	}
+
+	for _, ingredient := range recipe.Ingredients {
+		sourceAmt := sourceAmounts[ingredient.Type]
+		if (int64(sourceAmt) * ingredient.Numerator / ingredient.Denominator) != int64(createdAmount) {
+			return fmt.Errorf("Ratio invalid for %s", ingredient.Type)
+		}
+
+	}
+
 	output := OTX.New(creatorPublicKey, createdAmount, recipe.CreatedType, data, p.Counter)
 	p.Outputs = append(p.Outputs, *output)
 	newCounter := sha256.Sum256(p.Counter)
