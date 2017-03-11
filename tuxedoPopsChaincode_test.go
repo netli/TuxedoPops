@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/skuchain/TuxedoPops/Pop"
 	txcache "github.com/skuchain/TuxedoPops/TXCache"
 	"github.com/skuchain/TuxedoPops/TuxedoPopsTX"
 
@@ -123,21 +122,23 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed strin
 	}
 }
 
-func generateCombineSig(sources []Pop.SourceOutput, amount int, data string, privateKeyStr string) string {
+func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int, data string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
 
-	message := ""
-	for _, source := range sources {
+	message := counter
+	message += ":" + combine.Recipe
+	for _, source := range combine.GetSources() {
 		message += ":" + strconv.FormatInt(int64(source.Idx()), 10)
 		message += ":" + strconv.FormatInt(int64(source.Amount()), 10)
 	}
 	message += ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
 
 	fmt.Println("Signed Message")
-	fmt.Println(message)
 	messageBytes := sha256.Sum256([]byte(message))
+	fmt.Println(message)
+
 	sig, _ := privKey.Sign(messageBytes[:])
 
 	return hex.EncodeToString(sig.Serialize())
@@ -170,7 +171,7 @@ func registerRecipe(t *testing.T, stub *shim.MockStub) {
 	test[0] = new(TuxedoPopsTX.Ingredient)
 	test[0].Denominator = 1
 	test[0].Numerator = 1
-	test[0].Type = "A"
+	test[0].Type = "Test Asset"
 
 	recipeArgs.Ingredients = test
 
@@ -332,19 +333,31 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 	}
 	balanceResult := make(map[string]string)
 	json.Unmarshal(bytes, &balanceResult)
-	fmt.Println("Bracket Results")
+	fmt.Println("\n\n\nBracket Results")
 	fmt.Println(string(bytes))
 	counter := balanceResult["Counter"]
 
 	//mint transaction with keys and counterseed
 	altMint(t, stub, keys, counter)
 
+	//query balance to get counterSeed
+	bytes, err = stub.MockQuery("balance", []string{keys.address})
+	if err != nil {
+		t.Errorf("query failure\n")
+	}
+	balanceResult = make(map[string]string)
+	json.Unmarshal(bytes, &balanceResult)
+
+	fmt.Println("\n\n\nBracket Results After Mint")
+	fmt.Println(string(bytes))
+	counter = balanceResult["Counter"]
+
 	registerRecipe(t, stub)
 
 	//perform combination
 	//check counterseed
 	combineArgs := TuxedoPopsTX.Combine{}
-	combineArgs.Address = "ccd652f622d8d63127babb4c4e34f8c831136adc"
+	combineArgs.Address = keys.address
 	//Sources
 	combineArgs.Sources = make([]*TuxedoPopsTX.CombineSources, 1)
 	combineArgs.Sources[0] = new(TuxedoPopsTX.CombineSources)
@@ -353,19 +366,17 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 
 	combineArgs.Amount = 10
 	combineArgs.Recipe = "test recipe"
-	combineArgs.CreatorPubKey, _ = hex.DecodeString("0318b8d3f9d2889ee18dd8a48bfdb539ffff4b7498864e7071addd1edb225690e3")
+	combineArgs.Data = "test data"
 
-	creatorPrivKey, err := newPrivateKeyString()
+	creatorPrivKey, _ := newPrivateKeyString()
+	creatorPubKeyStr, _ := newPubKeyString(creatorPrivKey)
+
+	combineArgs.CreatorPubKey, _ = hex.DecodeString(creatorPubKeyStr)
 	if err != nil {
 		fmt.Printf("error generating private key: %v", err.Error())
 	}
-	sources := make([]Pop.SourceOutput, len(combineArgs.Sources))
 
-	for i, v := range combineArgs.Sources {
-		sources[i] = v
-	}
-
-	combineArgs.CreatorSig, err = hex.DecodeString(generateCombineSig(sources, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey))
+	combineArgs.CreatorSig, err = hex.DecodeString(generateCombineSig(counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey))
 	if err != nil {
 		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
 		t.FailNow()
@@ -373,13 +384,11 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 
 	combineArgs.OwnerSigs = make([][]byte, 0)
 	combineArgs.PopcodePubKey, _ = hex.DecodeString(keys.pubKeyStr)
-	combineArgs.PopcodeSig, err = hex.DecodeString(generateCombineSig(sources, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr))
+	combineArgs.PopcodeSig, err = hex.DecodeString(generateCombineSig(counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr))
 	if err != nil {
 		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
 		t.FailNow()
 	}
-
-	combineArgs.Data = "test data"
 
 	combineArgsBytes, _ := proto.Marshal(&combineArgs)
 	combineArgsBytesStr := hex.EncodeToString(combineArgsBytes)

@@ -198,7 +198,7 @@ type SourceOutput interface {
 }
 
 func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubKey []byte, PopSig []byte,
-	createdAmount int, recipe TuxedoPopsStore.Recipe, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
+	createdAmount int, recipeName string, recipe TuxedoPopsStore.Recipe, data string, creatorPublicKeyBytes []byte, creatorSigBytes []byte) error {
 
 	// create public key object from PopPubKey
 	pubkey, err := btcec.ParsePubKey(PopPubKey, btcec.S256())
@@ -224,13 +224,16 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	}
 
 	//creatorSigBytes should be the signature of the following message
-	m := ""
+	m := hex.EncodeToString(p.Counter)
+	m += ":" + recipeName
 	for _, source := range sources {
 		m += ":" + strconv.FormatInt(int64(source.Idx()), 10)
 		m += ":" + strconv.FormatInt(int64(source.Amount()), 10)
 	}
 	m += ":" + strconv.FormatInt(int64(createdAmount), 10)
 	m += ":" + data
+
+	// fmt.Printf("Combine Message: %s\n", m)
 	mDigest := sha256.Sum256([]byte(m))
 
 	sourceAmounts := make(map[string]int)
@@ -241,7 +244,9 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 			return err
 		}
 		p.Outputs[source.Idx()].Amount -= source.Amount()
-		if p.Outputs[source.Idx()].Amount < 1 {
+		sourceAmounts[p.Outputs[source.Idx()].Type] += source.Amount()
+
+		if p.Outputs[source.Idx()].Amount < 0 {
 			return fmt.Errorf("Insufficient balance in index %d", source.Idx())
 		}
 		if p.Outputs[source.Idx()].Amount == 0 {
@@ -251,7 +256,6 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 				p.Outputs = p.Outputs[:source.Idx()]
 			}
 		}
-		sourceAmounts[p.Outputs[source.Idx()].Type] += source.Amount()
 	}
 
 	signature, err := btcec.ParseDERSignature(creatorSigBytes, btcec.S256())
