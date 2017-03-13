@@ -237,8 +237,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		for i, destAmount := range unitizeArgs.DestAmounts {
 			convertedAmounts[i] = int(destAmount)
 		}
-		sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data,
+		err = sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data,
 			&destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
+		if err != nil {
+			fmt.Printf("Unitize error: %s", err.Error())
+			return nil, fmt.Errorf("Unitize error: %s", err.Error())
+		}
+
 		err = stub.PutState("Popcode:"+sourceAddress, sourcePopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
