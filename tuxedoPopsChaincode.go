@@ -193,6 +193,9 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
 		sourceAddress := hex.EncodeToString(popcodeKeyDigest[:20])
+		if unitizeArgs.SourceAddress != sourceAddress {
+			return nil, fmt.Errorf("Public key %s does not derive address of %s", unitizeArgs.PopcodePubKey, unitizeArgs.SourceAddress)
+		}
 		sourcePopcodeBytes, err := stub.GetState("Popcode:" + sourceAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
