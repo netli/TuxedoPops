@@ -22,6 +22,11 @@ type Pop struct {
 }
 
 func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig []byte) error {
+
+	if idx < 0 || idx > len(p.Outputs) {
+		return fmt.Errorf("Invalid Source index %d", idx)
+	}
+
 	otx := p.Outputs[idx]
 	if len(otx.Owners) > 0 {
 		usedKeys := make([]bool, len(otx.Owners))
