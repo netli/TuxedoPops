@@ -245,12 +245,18 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	sourceAmounts := make(map[string]int)
 
 	for _, source := range sources {
+
 		err = p.verifyPopSigs(source.Idx(), mDigest[:], ownerSigs, PopSig)
 		if err != nil {
 			return err
 		}
+
 		p.Outputs[source.Idx()].Amount -= source.Amount()
 		sourceAmounts[p.Outputs[source.Idx()].Type] += source.Amount()
+
+	}
+
+	for _, source := range sources {
 
 		if p.Outputs[source.Idx()].Amount < 0 {
 			return fmt.Errorf("Insufficient balance in index %d", source.Idx())
