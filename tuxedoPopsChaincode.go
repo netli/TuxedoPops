@@ -162,6 +162,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected TransferOwners protocol buffer %s", err.Error())
 		}
+		popcodeKeyDigest := sha256.Sum256(transferArgs.PopcodePubKey)
+		transferAddress := hex.EncodeToString(popcodeKeyDigest[:20])
+
+		if transferAddress != transferArgs.Address {
+			return nil, fmt.Errorf("Public key %s does not derive address of %s", transferArgs.PopcodePubKey, transferArgs.Address)
+		}
+
 		popcodebytes, err := stub.GetState("Popcode:" + transferArgs.Address)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
@@ -268,6 +275,9 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		popcodeKeyDigest := sha256.Sum256(combineArgs.PopcodePubKey)
 		combineAddress := hex.EncodeToString(popcodeKeyDigest[:20])
+		if combineAddress != combineArgs.Address {
+			return nil, fmt.Errorf("Public key %s does not derive address of %s", combineArgs.PopcodePubKey, combineArgs.Address)
+		}
 
 		popcode := Pop.Pop{}
 		popcodeBytes, err := stub.GetState("Popcode:" + combineAddress)
