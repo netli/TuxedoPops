@@ -56,15 +56,15 @@ func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
 	bytes, err := stub.MockQuery("balance", []string{name})
 
 	if err != nil {
-		fmt.Println("Query", name, "failed", err)
+		fmt.Println("Query for address (", name, ") failed", err)
 		t.FailNow()
 	}
 	if bytes == nil {
-		fmt.Println("Query", name, "failed to get value")
+		fmt.Println("Query for address (", name, ") failed to get value")
 		t.FailNow()
 	}
 	if string(bytes) != value {
-		fmt.Println("Query value", name, "was not", value, "as expected instead", string(bytes))
+		fmt.Println("Query value for address (", name, ") was not", value, "as expected instead", string(bytes))
 		t.FailNow()
 	}
 }
@@ -135,7 +135,7 @@ func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int
 	}
 	message += ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
 
-	fmt.Println("Signed Message")
+	fmt.Printf("\n\ncombine message: (%s)\n\n", message)
 	messageBytes := sha256.Sum256([]byte(message))
 	fmt.Println(message)
 
@@ -278,9 +278,9 @@ func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	unitizeArgs.SourceAddress = "74ded2036e988fc56e3cff77a40c58239591e921"
 	unitizeArgs.SourceOutput = 0
 	unitizeArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-	ownerSig := generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, "Test Unitize", "7142c92e6eba38de08980eeb55b8c98bb19f8d417795adb56b6c4d25da6b26c5")
+	ownerSig := generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, unitizeArgs.Data, "7142c92e6eba38de08980eeb55b8c98bb19f8d417795adb56b6c4d25da6b26c5")
 	unitizeArgs.OwnerSigs = [][]byte{ownerSig}
-	unitizeArgs.PopcodeSig = generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, "Test Unitize", "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+	unitizeArgs.PopcodeSig = generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, unitizeArgs.Data, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
 	unitizeArgsBytes, _ := proto.Marshal(&unitizeArgs)
 	unitizeArgsBytesStr := hex.EncodeToString(unitizeArgsBytes)
 
@@ -301,6 +301,8 @@ func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int, a
 	for _, amount := range amounts {
 		message += ":" + strconv.FormatInt(int64(amount), 10)
 	}
+	fmt.Printf("\n\nunitize message: (%s)\n\n", message)
+
 	mDigest := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(mDigest[:])
 	return sig.Serialize()
@@ -355,7 +357,6 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 	registerRecipe(t, stub)
 
 	//perform combination
-	//check counterseed
 	combineArgs := TuxedoPopsTX.Combine{}
 	combineArgs.Address = keys.address
 	//Sources
@@ -400,34 +401,8 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 	}
 }
 
-type Combine struct {
-	Address       string                         `protobuf:"bytes,1,opt,name=Address" json:"Address,omitempty"`
-	Sources       []*TuxedoPopsTX.CombineSources `protobuf:"bytes,2,rep,name=sources" json:"sources,omitempty"`
-	Amount        int32                          `protobuf:"varint,3,opt,name=Amount" json:"Amount,omitempty"`
-	Recipe        string                         `protobuf:"bytes,4,opt,name=Recipe" json:"Recipe,omitempty"`
-	CreatorPubKey []byte                         `protobuf:"bytes,5,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
-	CreatorSig    []byte                         `protobuf:"bytes,6,opt,name=CreatorSig,proto3" json:"CreatorSig,omitempty"`
-	OwnerSigs     [][]byte                       `protobuf:"bytes,7,rep,name=OwnerSigs,proto3" json:"OwnerSigs,omitempty"`
-	PopcodePubKey []byte                         `protobuf:"bytes,8,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
-	PopcodeSig    []byte                         `protobuf:"bytes,9,opt,name=PopcodeSig,proto3" json:"PopcodeSig,omitempty"`
-	Data          string                         `protobuf:"bytes,10,opt,name=Data" json:"Data,omitempty"`
-}
-
-// func combine(t *testing.T, stub *shim.MockStub, counterSeed string) {
-// 	combineArgs := TuxedoPopsTX.Combine{}
-// 	combineArgs.Address = "ccd652f622d8d63127babb4c4e34f8c831136adc"
-// 	//Sources
-// 	combineArgs.Amount = 10
-// 	combineArgs.Recipe = "Test Recipe"
-// 	combineArgs.Recipe = "Test Combined Asset"
-// 	combineArgs.CreatorPubKey, _ = hex.DecodeString("0318b8d3f9d2889ee18dd8a48bfdb539ffff4b7498864e7071addd1edb225690e3")
-// 	// combineArgs.CreatorSig = generateCreateSig(CounterSeedStr string, amount int, assetType string, data string, addr string, privateKeyStr string)
-// 	OwnerSigs = new([]new([]byte))
-// 	combineArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-// 	combineArgs.Data = "test data"
-// }
-
 /*
+
 	//To create new private and public keys
 	privKeyString, err := newPrivateKeyString()
 	if err != nil {
