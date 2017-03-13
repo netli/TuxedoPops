@@ -24,7 +24,7 @@ type Pop struct {
 func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig []byte) error {
 
 	if idx < 0 || idx >= len(p.Outputs) {
-		return fmt.Errorf("Invalid Source index %d", idx)
+		return fmt.Errorf("Invalid Source index %d\n %s\n", idx, p.ToJSON())
 	}
 
 	otx := p.Outputs[idx]
