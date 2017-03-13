@@ -23,7 +23,7 @@ type Pop struct {
 
 func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig []byte) error {
 
-	if idx < 0 || idx > len(p.Outputs) {
+	if idx < 0 || idx >= len(p.Outputs) {
 		return fmt.Errorf("Invalid Source index %d", idx)
 	}
 
