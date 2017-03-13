@@ -13,7 +13,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"crypto/sha256"
 
@@ -311,7 +310,6 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 
 	case "recipe":
-		fmt.Fprintf(os.Stderr, "\nTHIS IS A TEST\n\n")
 		recipeArgs := TuxedoPopsTX.Recipe{}
 		err = proto.Unmarshal(argsBytes, &recipeArgs)
 		if err != nil {

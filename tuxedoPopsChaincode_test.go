@@ -590,6 +590,6 @@ func TestPopcodeChaincode(t *testing.T) {
 	// }
 	// fmt.Printf("JSON: %s\n", jsonMap)
 
-	// checkCounterSeedChange(t, stub)
+	checkCounterSeedChange(t, stub)
 	checkCombine(t, stub)
 }
