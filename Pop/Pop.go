@@ -256,19 +256,25 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 
 	}
 
-	for _, source := range sources {
+	/*
+		copy nonzero values and assign p.outputs to the new array.
+		make array of ouputs. If outputs.amount is greater than
+		need to make a new array that's a copy of the first one and isn't edited as we iterate.
+	*/
 
-		if p.Outputs[source.Idx()].Amount < 0 {
-			return fmt.Errorf("Insufficient balance in index %d", source.Idx())
+	filteredArray := make([]OTX.SecP256k1Output, 0)
+
+	for idx := range p.Outputs {
+
+		if p.Outputs[idx].Amount < 0 {
+			return fmt.Errorf("Insufficient balance in index %d", idx)
 		}
-		if p.Outputs[source.Idx()].Amount == 0 {
-			if source.Idx() != (len(p.Outputs) - 1) {
-				p.Outputs = append(p.Outputs[:source.Idx()], p.Outputs[source.Idx()+1:]...)
-			} else {
-				p.Outputs = p.Outputs[:source.Idx()]
-			}
+		if p.Outputs[idx].Amount != 0 {
+			filteredArray = append(filteredArray, p.Outputs[idx])
 		}
 	}
+
+	p.Outputs = filteredArray
 
 	signature, err := btcec.ParseDERSignature(creatorSigBytes, btcec.S256())
 	if err != nil {
