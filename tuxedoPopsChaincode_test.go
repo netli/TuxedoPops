@@ -354,7 +354,7 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 	fmt.Println(string(bytes))
 	counter = balanceResult["Counter"]
 
-	registerRecipe(t, stub)
+	// registerRecipe(t, stub)
 
 	//perform combination
 	combineArgs := TuxedoPopsTX.Combine{}
@@ -522,7 +522,6 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 		if expected := sha256.Sum256(originalCounterseed); i > 101 && (hex.EncodeToString(counterseed) != hex.EncodeToString(expected[:])) {
 			t.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n", hex.EncodeToString(counterseed), hex.EncodeToString(expected[:]))
 			t.FailNow()
-
 		}
 	}
 }
@@ -543,28 +542,28 @@ func TestPopcodeChaincode(t *testing.T) {
 	checkQuery(t, stub, "74ded2036e988fc56e3cff77a40c58239591e921", `{"Address":"74ded2036e988fc56e3cff77a40c58239591e921","Counter":"afab4e267a433fe306d1da4608629ce9a280bde98f7004ff883383d65b9f5948","Outputs":["{\"Owners\":[\"0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7\"],\"Threshold\":1,\"Data\":\"Test possess\",\"Type\":\"Test Asset\",\"PrevCounter\":\"1adb7c0c1b464fb45860355bf8e711312c608d01202197e58116a424f74af254\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 	checkQuery(t, stub, "10734390011641497f489cb475743b8e50d429bb", `{"Address":"10734390011641497f489cb475743b8e50d429bb","Counter":"83b298acdf5d7231597ffb776c8f027877ca89cbafa7675a3f177619b0a9ad74","Outputs":["{\"Owners\":null,\"Threshold\":0,\"Data\":\"Test Unitize\",\"Type\":\"Test Asset\",\"PrevCounter\":\"d3e41e748a7094cc520319623479f97dfb6aae0ea915940b72926384fe8d0e8c\",\"Creator\":\"03cc7d40833fdf46e05a7f86a6c9cf8a697a129fbae0676ad6bad71f163ea22b26\",\"Amount\":10}"]}`)
 
-	// registerRecipe(t, stub)
-	// function := "recipe"
-	// bytes, err := stub.MockQuery(function, []string{"test recipe"})
-	// if err != nil {
-	// 	fmt.Printf("Query (%s) failed. ERR: %v", function, err.Error())
-	// 	t.FailNow()
-	// }
-	// if bytes == nil {
-	// 	fmt.Printf("Query (%s) failed to get value\n", function)
-	// 	t.FailNow()
-	// }
-
-	// // fmt.Printf("recipe query: (%v)\n\n", hex.EncodeToString(bytes))
-	// var jsonMap map[string]interface{}
-	// if err := json.Unmarshal(bytes, &jsonMap); err != nil {
-	// 	fmt.Printf("error unmarshalling json string %s", bytes)
-	// 	t.FailNow()
-	// }
-	// fmt.Printf("JSON: %s\n", jsonMap)
 	for i := 0; i < 2; i++ {
 		checkCounterSeedChange(t, stub)
 	}
+
+	registerRecipe(t, stub)
+	function := "recipe"
+	bytes, err := stub.MockQuery(function, []string{"test recipe"})
+	if err != nil {
+		fmt.Printf("Query (%s) failed. ERR: %v", function, err.Error())
+		t.FailNow()
+	}
+	if bytes == nil {
+		fmt.Printf("Query (%s) failed to get value\n", function)
+		t.FailNow()
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(bytes, &jsonMap); err != nil {
+		fmt.Printf("error unmarshalling json string %s", bytes)
+		t.FailNow()
+	}
+	fmt.Printf("JSON: %s\n", jsonMap)
 
 	checkCombine(t, stub)
 }

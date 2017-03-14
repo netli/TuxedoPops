@@ -412,6 +412,24 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 	return nil, nil
 }
 
+func recipeToJSON(createdType string, ingredients []*TuxedoPopsStore.Ingredient, creatorPubKey []byte) ([]byte, error) {
+	type JSONRecipe struct {
+		CreatedType string
+		Ingredients []*TuxedoPopsStore.Ingredient
+		Creator     string
+	}
+	jsonRecipe := JSONRecipe{}
+	jsonRecipe.CreatedType = createdType
+	jsonRecipe.Ingredients = ingredients
+	jsonRecipe.Creator = hex.EncodeToString(creatorPubKey)
+
+	jsonstring, err := json.Marshal(jsonRecipe)
+	if err != nil {
+		return nil, err
+	}
+	return jsonstring, nil
+}
+
 func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	fmt.Printf("function: %s", function)
 	switch function {
@@ -469,7 +487,13 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 			fmt.Printf(err.Error())
 			return nil, fmt.Errorf("ERR: (%v)", err.Error())
 		}
-		return json.Marshal(recipe)
+
+		jsonBytes, err := recipeToJSON(recipe.CreatedType, recipe.Ingredients, recipe.Creator)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+		return jsonBytes, nil
 	}
 	return nil, nil
 }
