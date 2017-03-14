@@ -291,7 +291,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		popcode.FromBytes(popcodeBytes)
 
-		recipeBytes, err := stub.GetState("Recipe: " + combineArgs.Recipe)
+		recipeBytes, err := stub.GetState("Recipe:" + combineArgs.Recipe)
 
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
@@ -334,7 +334,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Invalid argument expected Recipe protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected Recipe protocol buffer %s", err.Error())
 		}
-		recipeBytes, err := stub.GetState("Recipe: " + recipeArgs.RecipeName)
+		recipeBytes, err := stub.GetState("Recipe:" + recipeArgs.RecipeName)
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
 			return nil, fmt.Errorf("Could not get Recipe (%s) state\n", recipeArgs.RecipeName)
@@ -385,7 +385,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, fmt.Errorf("Recipe Store Serialization Error\n")
 		}
 		fmt.Printf("PUTTING RECIPE (%s) TO LEDGER\n", recipeArgs.RecipeName)
-		err = stub.PutState("Recipe: "+recipeArgs.RecipeName, recStoreBytes)
+		err = stub.PutState("Recipe:"+recipeArgs.RecipeName, recStoreBytes)
 		if err != nil {
 			fmt.Printf("error putting recipe state to ledger: (%s)\n", err.Error())
 			return nil, fmt.Errorf("error putting recipe state to ledger: (%s)\n", err.Error())
@@ -454,7 +454,7 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 		recipe := TuxedoPopsStore.Recipe{}
 		recipeName := args[0]
 
-		recipeBytes, err := stub.GetState("Recipe: " + recipeName)
+		recipeBytes, err := stub.GetState("Recipe:" + recipeName)
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, fmt.Errorf("ERR: (%v)\n", err.Error())
