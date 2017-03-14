@@ -73,7 +73,7 @@ func (*Unitize) ProtoMessage()    {}
 
 type Combine struct {
 	Address       string            `protobuf:"bytes,1,opt,name=Address" json:"Address,omitempty"`
-	Sources       []*CombineSources `protobuf:"bytes,2,rep,name=sources" json:"sources,omitempty"`
+	Sources       []*CombineSources `protobuf:"bytes,2,rep,name=Sources" json:"Sources,omitempty"`
 	Amount        int32             `protobuf:"varint,3,opt,name=Amount" json:"Amount,omitempty"`
 	Recipe        string            `protobuf:"bytes,4,opt,name=Recipe" json:"Recipe,omitempty"`
 	CreatorPubKey []byte            `protobuf:"bytes,5,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`

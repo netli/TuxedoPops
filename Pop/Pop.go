@@ -34,7 +34,7 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 		for _, sigbytes := range ownerSigs {
 			signature, err := btcec.ParseDERSignature(sigbytes, btcec.S256())
 			if err != nil {
-				return fmt.Errorf("Bad  Ownder signature encoding %v", sigbytes)
+				return fmt.Errorf("Bad Owner signature encoding %v", sigbytes)
 			}
 
 			for i, pubKey := range otx.Owners {
@@ -286,7 +286,6 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		fmt.Println("Invalid creator signature")
 		return fmt.Errorf("Invalid creator signature")
 	}
-	fmt.Printf("sourceAmounts before ratio checking in combine: (%v)\n\n", sourceAmounts)
 	for _, ingredient := range recipe.Ingredients {
 		sourceAmt := sourceAmounts[ingredient.Type]
 		if (int64(sourceAmt) / ingredient.Numerator * ingredient.Denominator) != int64(createdAmount) {

@@ -527,8 +527,6 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 	}
 }
 
-// func generateCombineSig(sources []Pop.SourceOutput, amount int, data string, privateKeyStr string) string {
-
 func TestPopcodeChaincode(t *testing.T) {
 	bst := new(tuxedoPopsChaincode)
 	stub := shim.NewMockStub("tuxedoPops", bst)
