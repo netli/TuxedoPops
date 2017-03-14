@@ -261,7 +261,6 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		make array of ouputs. If outputs.amount is greater than
 		need to make a new array that's a copy of the first one and isn't edited as we iterate.
 	*/
-
 	filteredArray := make([]OTX.SecP256k1Output, 0)
 
 	for idx := range p.Outputs {
@@ -287,13 +286,12 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 		fmt.Println("Invalid creator signature")
 		return fmt.Errorf("Invalid creator signature")
 	}
-
+	fmt.Printf("sourceAmounts before ratio checking in combine: (%v)\n\n", sourceAmounts)
 	for _, ingredient := range recipe.Ingredients {
 		sourceAmt := sourceAmounts[ingredient.Type]
-		if (int64(sourceAmt) * ingredient.Numerator / ingredient.Denominator) != int64(createdAmount) {
+		if (int64(sourceAmt) / ingredient.Numerator * ingredient.Denominator) != int64(createdAmount) {
 			return fmt.Errorf("Ratio invalid for %s", ingredient.Type)
 		}
-
 	}
 
 	output := OTX.New(creatorPublicKey, createdAmount, recipe.CreatedType, data, p.Counter)

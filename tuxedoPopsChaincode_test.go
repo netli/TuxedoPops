@@ -564,7 +564,9 @@ func TestPopcodeChaincode(t *testing.T) {
 	// 	t.FailNow()
 	// }
 	// fmt.Printf("JSON: %s\n", jsonMap)
+	for i := 0; i < 2; i++ {
+		checkCounterSeedChange(t, stub)
+	}
 
-	checkCounterSeedChange(t, stub)
 	checkCombine(t, stub)
 }
