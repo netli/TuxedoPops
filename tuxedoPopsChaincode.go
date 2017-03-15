@@ -175,12 +175,20 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		stub.SetEvent("createEvent", createEventBytes)
 
 	case "transfer":
+		transferEvent := TxEvents.TransferEvent{}
+
 		transferArgs := TuxedoPopsTX.TransferOwners{}
 		err = proto.Unmarshal(argsBytes, &transferArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected TransferOwners protocol buffer %s", err.Error())
 		}
+
+		transferEvent.Address = transferArgs.Address
+		transferEvent.Data = transferArgs.Data
+		transferEvent.Owners = transferArgs.Owners
+		transferEvent.Threshold = transferArgs.Threshold
+
 		popcodeKeyDigest := sha256.Sum256(transferArgs.PopcodePubKey)
 		transferAddress := hex.EncodeToString(popcodeKeyDigest[:20])
 
@@ -200,6 +208,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		popcode := Pop.Pop{}
 		popcode.FromBytes(popcodebytes)
+		transferEvent.CurrentCounterSeed = popcode.Counter
 		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
 		if err != nil {
 			fmt.Printf(err.Error())
@@ -210,6 +219,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
+		transferEventBytes, err := proto.Marshal(&transferEvent)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+		stub.SetEvent("transferEvent", transferEventBytes)
+
 	case "unitize":
 		unitizeArgs := TuxedoPopsTX.Unitize{}
 		err = proto.Unmarshal(argsBytes, &unitizeArgs)
