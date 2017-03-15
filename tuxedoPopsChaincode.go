@@ -27,6 +27,7 @@ import (
 	txcache "github.com/skuchain/TuxedoPops/TXCache"
 	"github.com/skuchain/TuxedoPops/TuxedoPopsStore"
 	"github.com/skuchain/TuxedoPops/TuxedoPopsTX"
+	"github.com/skuchain/TuxedoPops/TxEvents"
 )
 
 // This chaincode implements the ledger operations for the proofchaincode
@@ -86,12 +87,21 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 	switch function {
 	case "create":
+
+		createEvent := TxEvents.CreateEvent{}
+
 		createArgs := TuxedoPopsTX.CreateTX{}
 		err = proto.Unmarshal(argsBytes, &createArgs)
 		if err != nil {
 			fmt.Printf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error())
 			return nil, fmt.Errorf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error())
 		}
+
+		createEvent.Address = createArgs.Address
+		createEvent.Amount = createArgs.Amount
+		createEvent.CreatorPubKey = createArgs.CreatorPubKey
+		createEvent.Data = createArgs.Data
+		createEvent.Type = createArgs.Type
 
 		popcodebytes, err := stub.GetState("Popcode:" + createArgs.Address)
 
@@ -112,6 +122,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
+			createEvent.CurrentCounterSeed = hashedCounterSeed[:]
 			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
@@ -138,6 +149,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 				fmt.Println("Popcode Deserialization error")
 				return nil, errors.New("Popcode Deserialization Failure")
 			}
+			createEvent.CurrentCounterSeed = popcode.Counter
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
@@ -149,11 +161,18 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		sigHash := sha256.Sum256(createArgs.CreatorSig[:])
 		cacheIndex := hex.EncodeToString(sigHash[:])
 		txCache.Cache[cacheIndex] = true
+		createEvent.NextCounterSeed = popcode.Counter
 		err = stub.PutState("Popcode:"+createArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
 		}
+		createEventBytes, err := proto.Marshal(&createEvent)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+		stub.SetEvent("createEvent", createEventBytes)
 
 	case "transfer":
 		transferArgs := TuxedoPopsTX.TransferOwners{}

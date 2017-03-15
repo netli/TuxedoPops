@@ -1,0 +1,50 @@
+syntax ="proto3";
+
+message CreateEvent {
+    bytes CurrentCounterSeed =1;
+    bytes NextCounterSeed=2;
+    string Address =3;
+    int32 Amount =4;
+    string Data =5;
+    string Type = 6;
+    bytes CreatorPubKey =7;
+}
+
+message TransferEvent{
+    bytes CurrentCounterSeed =1;
+    bytes NextCounterSeed=2;
+    string Address =3;
+    int32 Output =4;
+    int32 Threshold =5;
+    repeated bytes Owners =6;
+    bytes PopcodePubKey =7;
+    string Data = 8;
+}
+
+message UnitizeEvent{
+    bytes SourceCounterSeed =1;
+    bytes DestCounterSeed=2;
+    int32 SourceOutput=3;
+    string SourceAddress =4; 
+    string DestAddress=5;
+    repeated int32 DestAmounts =6;
+    bytes PopcodePubKey =7;
+    string Data =8;
+}
+
+message CombineEvent{
+    bytes CurrentCounterSeed =1;
+    bytes NextCounterSeed=2;
+    string Address =3;
+    repeated CombineSources sources=4;
+    int32 Amount =5; 
+    string Recipe =6;
+    bytes CreatorPubKey =7;
+    bytes PopcodePubKey =8;
+    string Data =9; 
+}
+
+message CombineSources{
+ int32 SourceOutput =1;
+ int32 SourceAmount =2;
+}
