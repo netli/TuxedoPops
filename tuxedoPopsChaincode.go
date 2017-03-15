@@ -319,12 +319,26 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		stub.SetEvent("unitizedEvent", unitizeEventBytes)
 
 	case "combine":
+
+		combineEvent := TxEvents.CombineEvent{}
 		combineArgs := TuxedoPopsTX.Combine{}
 
 		err = proto.Unmarshal(argsBytes, &combineArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Combine protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected Combine protocol buffer %s", err.Error())
+		}
+		combineEvent.Address = combineArgs.Address
+		combineEvent.Amount = combineArgs.Amount
+		combineEvent.CreatorPubKey = combineArgs.CreatorPubKey
+		combineEvent.Data = combineArgs.Data
+		combineEvent.Recipe = combineArgs.Recipe
+
+		for _, source := range combineArgs.Sources {
+			evSource := TxEvents.CombineSources{}
+			evSource.SourceAmount = source.SourceAmount
+			evSource.SourceOutput = source.SourceOutput
+			combineEvent.Sources = append(combineEvent.Sources, &evSource)
 		}
 
 		popcodeKeyDigest := sha256.Sum256(combineArgs.PopcodePubKey)
@@ -344,6 +358,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, errors.New("No value found in popcode")
 		}
 		popcode.FromBytes(popcodeBytes)
+		combineEvent.CurrentCounterSeed = popcode.Counter
 
 		recipeBytes, err := stub.GetState("Recipe:" + combineArgs.Recipe)
 
@@ -380,6 +395,14 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
+		combineEvent.NextCounterSeed = popcode.Counter
+
+		combineEventBytes, err := proto.Marshal(&combineEvent)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+		stub.SetEvent("unitizedEvent", combineEventBytes)
 
 	case "recipe":
 		recipeArgs := TuxedoPopsTX.Recipe{}
