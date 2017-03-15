@@ -227,12 +227,20 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		stub.SetEvent("transferEvent", transferEventBytes)
 
 	case "unitize":
+		unitizeEvent := TxEvents.UnitizeEvent{}
 		unitizeArgs := TuxedoPopsTX.Unitize{}
 		err = proto.Unmarshal(argsBytes, &unitizeArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Unitize protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected Unitize protocol buffer %s", err.Error())
 		}
+		unitizeEvent.Data = unitizeArgs.Data
+		unitizeEvent.DestAddress = unitizeArgs.DestAddress
+		unitizeEvent.DestAmounts = unitizeArgs.DestAmounts
+		unitizeEvent.PopcodePubKey = unitizeArgs.PopcodePubKey
+		unitizeEvent.SourceAddress = unitizeArgs.SourceAddress
+		unitizeEvent.SourceOutput = unitizeArgs.SourceOutput
+
 		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
 		sourceAddress := hex.EncodeToString(popcodeKeyDigest[:20])
 		if unitizeArgs.SourceAddress != sourceAddress {
@@ -253,6 +261,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Could not get Popcode State")
 			return nil, errors.New("Could not get Popcode State")
 		}
+
+		unitizeEvent.SourceCounterSeed = sourcePopcode.Counter
 		destAddress := unitizeArgs.DestAddress
 		destPopcodeBytes, err := stub.GetState("Popcode:" + destAddress)
 		if err != nil {
@@ -271,12 +281,14 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			destPopcode.Address = unitizeArgs.DestAddress
 			destPopcode.Counter = hashedCounterSeed[:]
+			unitizeEvent.DestCounterSeed = hashedCounterSeed[:]
 		} else {
 			err = destPopcode.FromBytes(destPopcodeBytes)
 			if err != nil {
 				fmt.Println("Dest Popcode Deserialization error")
 				return nil, errors.New("Dest Popcode Deserialization Failure")
 			}
+			unitizeEvent.DestCounterSeed = destPopcode.Counter
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))
 		for i, destAmount := range unitizeArgs.DestAmounts {
@@ -299,6 +311,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
+		unitizeEventBytes, err := proto.Marshal(&unitizeEvent)
+		if err != nil {
+			fmt.Printf(err.Error())
+			return nil, err
+		}
+		stub.SetEvent("unitizedEvent", unitizeEventBytes)
+
 	case "combine":
 		combineArgs := TuxedoPopsTX.Combine{}
 
