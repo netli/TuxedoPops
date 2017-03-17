@@ -122,7 +122,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
-			createEvent.CurrentCounterSeed = hashedCounterSeed[:]
+			createEvent.Counter = hashedCounterSeed[:]
 			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
@@ -149,7 +149,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 				fmt.Println("Popcode Deserialization error")
 				return nil, errors.New("Popcode Deserialization Failure")
 			}
-			createEvent.CurrentCounterSeed = popcode.Counter
+			createEvent.Counter = popcode.Counter
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
@@ -161,7 +161,6 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		sigHash := sha256.Sum256(createArgs.CreatorSig[:])
 		cacheIndex := hex.EncodeToString(sigHash[:])
 		txCache.Cache[cacheIndex] = true
-		createEvent.NextCounterSeed = popcode.Counter
 		err = stub.PutState("Popcode:"+createArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
@@ -172,7 +171,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		stub.SetEvent("createEvent", createEventBytes)
+		stub.SetEvent("create", createEventBytes)
 
 	case "transfer":
 		transferEvent := TxEvents.TransferEvent{}
@@ -208,8 +207,10 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		popcode := Pop.Pop{}
 		popcode.FromBytes(popcodebytes)
-		transferEvent.CurrentCounterSeed = popcode.Counter
+		transferEvent.SourceCounter = popcode.Outputs[transferArgs.Output].PrevCounter
 		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
+		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
+
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
@@ -224,7 +225,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		stub.SetEvent("transferEvent", transferEventBytes)
+		stub.SetEvent("transfer", transferEventBytes)
 
 	case "unitize":
 		unitizeEvent := TxEvents.UnitizeEvent{}
@@ -262,7 +263,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, errors.New("Could not get Popcode State")
 		}
 
-		unitizeEvent.SourceCounterSeed = sourcePopcode.Counter
+		unitizeEvent.SourceCounter = sourcePopcode.Outputs[unitizeArgs.SourceOutput].PrevCounter
 		destAddress := unitizeArgs.DestAddress
 		destPopcodeBytes, err := stub.GetState("Popcode:" + destAddress)
 		if err != nil {
@@ -281,14 +282,12 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			destPopcode.Address = unitizeArgs.DestAddress
 			destPopcode.Counter = hashedCounterSeed[:]
-			unitizeEvent.DestCounterSeed = hashedCounterSeed[:]
 		} else {
 			err = destPopcode.FromBytes(destPopcodeBytes)
 			if err != nil {
 				fmt.Println("Dest Popcode Deserialization error")
 				return nil, errors.New("Dest Popcode Deserialization Failure")
 			}
-			unitizeEvent.DestCounterSeed = destPopcode.Counter
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))
 		for i, destAmount := range unitizeArgs.DestAmounts {
@@ -296,6 +295,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		err = sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data,
 			&destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
+
+		// The idea here is to harvest the created Counter values for the destinations via revserse interation through the number of events coordinated
+		for index := len(destPopcode.Outputs) - 1; index > len(destPopcode.Outputs)-1-len(unitizeArgs.DestAmounts); index-- {
+			unitizeEvent.DestCounters = append(unitizeEvent.DestCounters, destPopcode.Outputs[index].PrevCounter)
+		}
 		if err != nil {
 			fmt.Printf("Unitize error: %s", err.Error())
 			return nil, fmt.Errorf("Unitize error: %s", err.Error())
@@ -316,7 +320,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		stub.SetEvent("unitizedEvent", unitizeEventBytes)
+		stub.SetEvent("unitized", unitizeEventBytes)
 
 	case "combine":
 
@@ -358,7 +362,6 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, errors.New("No value found in popcode")
 		}
 		popcode.FromBytes(popcodeBytes)
-		combineEvent.CurrentCounterSeed = popcode.Counter
 
 		recipeBytes, err := stub.GetState("Recipe:" + combineArgs.Recipe)
 
@@ -380,6 +383,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		for i, v := range combineArgs.Sources {
 			sources[i] = v
+
+			if v.Idx() < len(popcode.Outputs) {
+				combineEvent.SourceCounters = append(combineEvent.SourceCounters, popcode.Outputs[v.Idx()].PrevCounter)
+			} else {
+				return nil, fmt.Errorf("Invalid output index in combine %d", v.Idx())
+			}
+
 		}
 
 		err = popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSig,
@@ -395,14 +405,12 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		combineEvent.NextCounterSeed = popcode.Counter
-
 		combineEventBytes, err := proto.Marshal(&combineEvent)
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		stub.SetEvent("unitizedEvent", combineEventBytes)
+		stub.SetEvent("combine", combineEventBytes)
 
 	case "recipe":
 		recipeArgs := TuxedoPopsTX.Recipe{}

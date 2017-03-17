@@ -27,13 +27,12 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type CreateEvent struct {
-	CurrentCounterSeed []byte `protobuf:"bytes,1,opt,name=CurrentCounterSeed,proto3" json:"CurrentCounterSeed,omitempty"`
-	NextCounterSeed    []byte `protobuf:"bytes,2,opt,name=NextCounterSeed,proto3" json:"NextCounterSeed,omitempty"`
-	Address            string `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
-	Amount             int32  `protobuf:"varint,4,opt,name=Amount" json:"Amount,omitempty"`
-	Data               string `protobuf:"bytes,5,opt,name=Data" json:"Data,omitempty"`
-	Type               string `protobuf:"bytes,6,opt,name=Type" json:"Type,omitempty"`
-	CreatorPubKey      []byte `protobuf:"bytes,7,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
+	Counter       []byte `protobuf:"bytes,1,opt,name=Counter,proto3" json:"Counter,omitempty"`
+	Address       string `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
+	Amount        int32  `protobuf:"varint,4,opt,name=Amount" json:"Amount,omitempty"`
+	Data          string `protobuf:"bytes,5,opt,name=Data" json:"Data,omitempty"`
+	Type          string `protobuf:"bytes,6,opt,name=Type" json:"Type,omitempty"`
+	CreatorPubKey []byte `protobuf:"bytes,7,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
 }
 
 func (m *CreateEvent) Reset()         { *m = CreateEvent{} }
@@ -41,14 +40,14 @@ func (m *CreateEvent) String() string { return proto.CompactTextString(m) }
 func (*CreateEvent) ProtoMessage()    {}
 
 type TransferEvent struct {
-	CurrentCounterSeed []byte   `protobuf:"bytes,1,opt,name=CurrentCounterSeed,proto3" json:"CurrentCounterSeed,omitempty"`
-	NextCounterSeed    []byte   `protobuf:"bytes,2,opt,name=NextCounterSeed,proto3" json:"NextCounterSeed,omitempty"`
-	Address            string   `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
-	Output             int32    `protobuf:"varint,4,opt,name=Output" json:"Output,omitempty"`
-	Threshold          int32    `protobuf:"varint,5,opt,name=Threshold" json:"Threshold,omitempty"`
-	Owners             [][]byte `protobuf:"bytes,6,rep,name=Owners,proto3" json:"Owners,omitempty"`
-	PopcodePubKey      []byte   `protobuf:"bytes,7,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
-	Data               string   `protobuf:"bytes,8,opt,name=Data" json:"Data,omitempty"`
+	SourceCounter []byte   `protobuf:"bytes,1,opt,name=SourceCounter,proto3" json:"SourceCounter,omitempty"`
+	DestCounter   []byte   `protobuf:"bytes,2,opt,name=DestCounter,proto3" json:"DestCounter,omitempty"`
+	Address       string   `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
+	Output        int32    `protobuf:"varint,4,opt,name=Output" json:"Output,omitempty"`
+	Threshold     int32    `protobuf:"varint,5,opt,name=Threshold" json:"Threshold,omitempty"`
+	Owners        [][]byte `protobuf:"bytes,6,rep,name=Owners,proto3" json:"Owners,omitempty"`
+	PopcodePubKey []byte   `protobuf:"bytes,7,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
+	Data          string   `protobuf:"bytes,8,opt,name=Data" json:"Data,omitempty"`
 }
 
 func (m *TransferEvent) Reset()         { *m = TransferEvent{} }
@@ -56,14 +55,14 @@ func (m *TransferEvent) String() string { return proto.CompactTextString(m) }
 func (*TransferEvent) ProtoMessage()    {}
 
 type UnitizeEvent struct {
-	SourceCounterSeed []byte  `protobuf:"bytes,1,opt,name=SourceCounterSeed,proto3" json:"SourceCounterSeed,omitempty"`
-	DestCounterSeed   []byte  `protobuf:"bytes,2,opt,name=DestCounterSeed,proto3" json:"DestCounterSeed,omitempty"`
-	SourceOutput      int32   `protobuf:"varint,3,opt,name=SourceOutput" json:"SourceOutput,omitempty"`
-	SourceAddress     string  `protobuf:"bytes,4,opt,name=SourceAddress" json:"SourceAddress,omitempty"`
-	DestAddress       string  `protobuf:"bytes,5,opt,name=DestAddress" json:"DestAddress,omitempty"`
-	DestAmounts       []int32 `protobuf:"varint,6,rep,name=DestAmounts" json:"DestAmounts,omitempty"`
-	PopcodePubKey     []byte  `protobuf:"bytes,7,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
-	Data              string  `protobuf:"bytes,8,opt,name=Data" json:"Data,omitempty"`
+	SourceCounter []byte   `protobuf:"bytes,1,opt,name=SourceCounter,proto3" json:"SourceCounter,omitempty"`
+	DestCounters  [][]byte `protobuf:"bytes,2,rep,name=DestCounters,proto3" json:"DestCounters,omitempty"`
+	SourceOutput  int32    `protobuf:"varint,3,opt,name=SourceOutput" json:"SourceOutput,omitempty"`
+	SourceAddress string   `protobuf:"bytes,4,opt,name=SourceAddress" json:"SourceAddress,omitempty"`
+	DestAddress   string   `protobuf:"bytes,5,opt,name=DestAddress" json:"DestAddress,omitempty"`
+	DestAmounts   []int32  `protobuf:"varint,6,rep,name=DestAmounts" json:"DestAmounts,omitempty"`
+	PopcodePubKey []byte   `protobuf:"bytes,7,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
+	Data          string   `protobuf:"bytes,8,opt,name=Data" json:"Data,omitempty"`
 }
 
 func (m *UnitizeEvent) Reset()         { *m = UnitizeEvent{} }
@@ -71,15 +70,15 @@ func (m *UnitizeEvent) String() string { return proto.CompactTextString(m) }
 func (*UnitizeEvent) ProtoMessage()    {}
 
 type CombineEvent struct {
-	CurrentCounterSeed []byte            `protobuf:"bytes,1,opt,name=CurrentCounterSeed,proto3" json:"CurrentCounterSeed,omitempty"`
-	NextCounterSeed    []byte            `protobuf:"bytes,2,opt,name=NextCounterSeed,proto3" json:"NextCounterSeed,omitempty"`
-	Address            string            `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
-	Sources            []*CombineSources `protobuf:"bytes,4,rep,name=sources" json:"sources,omitempty"`
-	Amount             int32             `protobuf:"varint,5,opt,name=Amount" json:"Amount,omitempty"`
-	Recipe             string            `protobuf:"bytes,6,opt,name=Recipe" json:"Recipe,omitempty"`
-	CreatorPubKey      []byte            `protobuf:"bytes,7,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
-	PopcodePubKey      []byte            `protobuf:"bytes,8,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
-	Data               string            `protobuf:"bytes,9,opt,name=Data" json:"Data,omitempty"`
+	SourceCounters [][]byte          `protobuf:"bytes,1,rep,name=SourceCounters,proto3" json:"SourceCounters,omitempty"`
+	DestCounter    []byte            `protobuf:"bytes,2,opt,name=DestCounter,proto3" json:"DestCounter,omitempty"`
+	Address        string            `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
+	Sources        []*CombineSources `protobuf:"bytes,4,rep,name=sources" json:"sources,omitempty"`
+	Amount         int32             `protobuf:"varint,5,opt,name=Amount" json:"Amount,omitempty"`
+	Recipe         string            `protobuf:"bytes,6,opt,name=Recipe" json:"Recipe,omitempty"`
+	CreatorPubKey  []byte            `protobuf:"bytes,7,opt,name=CreatorPubKey,proto3" json:"CreatorPubKey,omitempty"`
+	PopcodePubKey  []byte            `protobuf:"bytes,8,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
+	Data           string            `protobuf:"bytes,9,opt,name=Data" json:"Data,omitempty"`
 }
 
 func (m *CombineEvent) Reset()         { *m = CombineEvent{} }

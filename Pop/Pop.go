@@ -179,6 +179,8 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		//I'm pretty sure this is a copy not a reference
 		destOut := p.Outputs[idx]
 		destOut.PrevCounter = p.Counter
+		newCounter := sha256.Sum256(p.Counter)
+		p.Counter = newCounter[:]
 		destOut.Data = data
 		destOut.Amount = amount
 		destOut.Owners = []btcec.PublicKey{}

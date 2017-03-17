@@ -1,8 +1,7 @@
 syntax ="proto3";
 
 message CreateEvent {
-    bytes CurrentCounterSeed =1;
-    bytes NextCounterSeed=2;
+    bytes Counter =1;
     string Address =3;
     int32 Amount =4;
     string Data =5;
@@ -11,8 +10,8 @@ message CreateEvent {
 }
 
 message TransferEvent{
-    bytes CurrentCounterSeed =1;
-    bytes NextCounterSeed=2;
+    bytes SourceCounter =1;
+    bytes DestCounter=2;
     string Address =3;
     int32 Output =4;
     int32 Threshold =5;
@@ -22,8 +21,8 @@ message TransferEvent{
 }
 
 message UnitizeEvent{
-    bytes SourceCounterSeed =1;
-    bytes DestCounterSeed=2;
+    bytes SourceCounter =1;
+    repeated bytes DestCounters=2;
     int32 SourceOutput=3;
     string SourceAddress =4; 
     string DestAddress=5;
@@ -33,15 +32,15 @@ message UnitizeEvent{
 }
 
 message CombineEvent{
-    bytes CurrentCounterSeed =1;
-    bytes NextCounterSeed=2;
+    repeated bytes SourceCounters =1;
+    bytes DestCounter=2;
     string Address =3;
     repeated CombineSources sources=4;
     int32 Amount =5; 
     string Recipe =6;
     bytes CreatorPubKey =7;
     bytes PopcodePubKey =8;
-    string Data =9; 
+    string Data =9;
 }
 
 message CombineSources{
