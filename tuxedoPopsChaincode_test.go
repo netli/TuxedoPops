@@ -95,7 +95,7 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 }
 
 //altMint takes in a key struct which holds input of private key, public key, and address
-func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed string) {
+func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo) {
 	createArgs := TuxedoPopsTX.CreateTX{}
 	createArgs.Address = keys.address
 	createArgs.Amount = 10
@@ -107,7 +107,7 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo, counterSeed strin
 		fmt.Println(err)
 	}
 	createArgs.CreatorPubKey = pubKeyBytes
-	hexCreatorSig := generateCreateSig(counterSeed, 10, "Test Asset", "Test Data", keys.address, keys.privKeyStr)
+	hexCreatorSig := generateCreateSig(keys.counter, 10, "Test Asset", "Test Data", keys.address, keys.privKeyStr)
 
 	createArgs.CreatorSig, err = hex.DecodeString(hexCreatorSig)
 	if err != nil {
@@ -328,31 +328,11 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 	}
 	keys.address = newAddress(keys.pubKeyStr)
 
-	//query balance to get counterSeed
-	bytes, err := stub.MockQuery("balance", []string{keys.address})
-	if err != nil {
-		t.Errorf("query failure\n")
-	}
-	balanceResult := make(map[string]string)
-	json.Unmarshal(bytes, &balanceResult)
-	fmt.Println("\n\n\nBracket Results")
-	fmt.Println(string(bytes))
-	counter := balanceResult["Counter"]
-
+	keys.counter = getCounter(t, stub, keys)
 	//mint transaction with keys and counterseed
-	altMint(t, stub, keys, counter)
+	altMint(t, stub, keys)
 
-	//query balance to get counterSeed
-	bytes, err = stub.MockQuery("balance", []string{keys.address})
-	if err != nil {
-		t.Errorf("query failure\n")
-	}
-	balanceResult = make(map[string]string)
-	json.Unmarshal(bytes, &balanceResult)
-
-	fmt.Println("\n\n\nBracket Results After Mint")
-	fmt.Println(string(bytes))
-	counter = balanceResult["Counter"]
+	keys.counter = getCounter(t, stub, keys)
 
 	// registerRecipe(t, stub)
 
@@ -377,7 +357,7 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 		fmt.Printf("error generating private key: %v", err.Error())
 	}
 
-	combineArgs.CreatorSig, err = hex.DecodeString(generateCombineSig(counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey))
+	combineArgs.CreatorSig, err = hex.DecodeString(generateCombineSig(keys.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey))
 	if err != nil {
 		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
 		t.FailNow()
@@ -385,7 +365,7 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 
 	combineArgs.OwnerSigs = make([][]byte, 0)
 	combineArgs.PopcodePubKey, _ = hex.DecodeString(keys.pubKeyStr)
-	combineArgs.PopcodeSig, err = hex.DecodeString(generateCombineSig(counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr))
+	combineArgs.PopcodeSig, err = hex.DecodeString(generateCombineSig(keys.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr))
 	if err != nil {
 		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
 		t.FailNow()
@@ -402,7 +382,6 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 }
 
 /*
-
 	//To create new private and public keys
 	privKeyString, err := newPrivateKeyString()
 	if err != nil {
@@ -451,10 +430,34 @@ func newAddress(pubKeyStr string) string {
 	return address
 }
 
-type keyInfo struct {
-	privKeyStr string
-	pubKeyStr  string
-	address    string
+func generateKeys() (*keyInfo, error) {
+	var err error
+	keys := new(keyInfo)
+	keys.privKeyStr, err = newPrivateKeyString()
+	if err != nil {
+		fmt.Printf("error generating private key: %v", err.Error())
+		return nil, fmt.Errorf("error generating private key: %v", err.Error())
+	}
+	keys.pubKeyStr, err = newPubKeyString(keys.privKeyStr)
+	if err != nil {
+		fmt.Printf("error generating public key: %v", err.Error())
+		return nil, fmt.Errorf("error generating public key: %v", err.Error())
+	}
+	keys.address = newAddress(keys.pubKeyStr)
+	return keys, nil
+}
+
+func getCounter(t *testing.T, stub *shim.MockStub, keys *keyInfo) string {
+	//query balance to get counterSeed
+	bytes, err := stub.MockQuery("balance", []string{keys.address})
+	if err != nil {
+		t.Errorf("balance query failure\n")
+		t.FailNow()
+	}
+	balanceResult := make(map[string]string)
+
+	json.Unmarshal(bytes, &balanceResult)
+	return balanceResult["Counter"]
 }
 
 /*
@@ -474,30 +477,16 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 	//create up to 150 popcodes
 	for i := len(txCache.Cache); i < 150; i++ {
 		//create a new set of keys
-		keys := new(keyInfo)
-		keys.privKeyStr, err = newPrivateKeyString()
+		keys, err := generateKeys()
 		if err != nil {
-			fmt.Printf("error generating private key: %v", err)
+			t.Errorf("error generating keys: (%v)\n", err.Error())
 		}
-		keys.pubKeyStr, err = newPubKeyString(keys.privKeyStr)
+		keys.counter = getCounter(t, stub, keys)
 		if err != nil {
-			fmt.Printf("error generating public key: %v", err)
+			t.Errorf("error retrieving counter in checkCounterSeedChange: (%v)\n", err.Error())
 		}
-		keys.address = newAddress(keys.pubKeyStr)
-
-		//query balance to get counterSeed
-		bytes, err := stub.MockQuery("balance", []string{keys.address})
-		if err != nil {
-			t.Errorf("query failure\n")
-		}
-		balanceResult := make(map[string]string)
-
-		json.Unmarshal(bytes, &balanceResult)
-		fmt.Println("Bracket Results")
-		fmt.Println(string(bytes))
-
 		//mint transaction with keys and counterseed
-		altMint(t, stub, keys, balanceResult["Counter"])
+		altMint(t, stub, keys)
 
 		//check counterseed
 		counterseed, err := stub.GetState("CounterSeed")
@@ -524,6 +513,23 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 			t.FailNow()
 		}
 	}
+}
+
+type keyInfo struct {
+	privKeyStr string
+	pubKeyStr  string
+	address    string
+	counter    string
+}
+
+type test struct {
+	t        *testing.T
+	stub     *shim.MockStub
+	user1    *keyInfo
+	user2    *keyInfo
+	popcode1 *keyInfo
+	popcode2 *keyInfo
+	data     string
 }
 
 func TestPopcodeChaincode(t *testing.T) {
@@ -566,4 +572,28 @@ func TestPopcodeChaincode(t *testing.T) {
 	fmt.Printf("JSON: %s\n", jsonMap)
 
 	checkCombine(t, stub)
+
+	//new testing suite in progress below:
+
+	user1, err := generateKeys()
+	if err != nil {
+		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
+	}
+	user1.counter = getCounter(t, stub, user1)
+	user2, err := generateKeys()
+	if err != nil {
+		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
+	}
+	popcode1, err := generateKeys()
+	if err != nil {
+		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
+	}
+	popcode2, err := generateKeys()
+	if err != nil {
+		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
+	}
+	var tests = []test{
+		{t, stub, user1, user2, popcode1, popcode2, "data"},
+	}
+	altMint(t, stub, tests[0].user1)
 }
