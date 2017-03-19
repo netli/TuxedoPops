@@ -122,10 +122,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Counter = hashedCounterSeed[:]
-			createEvent.Counter = hashedCounterSeed[:]
+			createEvent.SourceCounter = hashedCounterSeed[:]
 			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
+			createEvent.DestCounter = popcode.Counter
 			if err != nil {
 				fmt.Printf(err.Error())
 				return nil, err
@@ -149,12 +150,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 				fmt.Println("Popcode Deserialization error")
 				return nil, errors.New("Popcode Deserialization Failure")
 			}
-			createEvent.Counter = popcode.Counter
+			createEvent.SourceCounter = popcode.Counter
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
 				return nil, err
 			}
+			createEvent.DestCounter = popcode.Counter
 
 		}
 

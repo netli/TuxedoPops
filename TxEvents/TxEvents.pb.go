@@ -27,7 +27,8 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type CreateEvent struct {
-	Counter       []byte `protobuf:"bytes,1,opt,name=Counter,proto3" json:"Counter,omitempty"`
+	SourceCounter []byte `protobuf:"bytes,1,opt,name=SourceCounter,proto3" json:"SourceCounter,omitempty"`
+	DestCounter   []byte `protobuf:"bytes,2,opt,name=DestCounter,proto3" json:"DestCounter,omitempty"`
 	Address       string `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
 	Amount        int32  `protobuf:"varint,4,opt,name=Amount" json:"Amount,omitempty"`
 	Data          string `protobuf:"bytes,5,opt,name=Data" json:"Data,omitempty"`
