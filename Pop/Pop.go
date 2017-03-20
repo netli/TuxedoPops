@@ -21,7 +21,9 @@ type Pop struct {
 	Outputs []OTX.SecP256k1Output
 }
 
-func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig []byte) error {
+func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte) error {
+
+	mDigest := sha256.Sum256([]byte(m))
 
 	if idx < 0 || idx >= len(p.Outputs) {
 		return fmt.Errorf("Invalid Source index %d\n %s\n", idx, p.ToJSON())
@@ -38,14 +40,14 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 			}
 
 			for i, pubKey := range otx.Owners {
-				success := signature.Verify(mDigest, &pubKey)
+				success := signature.Verify(mDigest[:], &pubKey)
 				if success && (usedKeys[i] == false) {
 					usedKeys[i] = true
 					validOwnerSigs++
 					break
 				}
 				if i == len(otx.Owners)-1 {
-					return fmt.Errorf("Invalid Signature %s on %s", hex.EncodeToString(signature.Serialize()), hex.EncodeToString(mDigest))
+					return fmt.Errorf("Invalid Signature %s on %s", hex.EncodeToString(signature.Serialize()), m)
 				}
 			}
 		}
@@ -60,7 +62,7 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 	}
 	success := signature.Verify(mDigest[:], &p.PubKey)
 	if !success {
-		return fmt.Errorf("Invalid Pop Signature %+v Pubkey %s Message %s", signature, hex.EncodeToString(p.PubKey.SerializeCompressed()), hex.EncodeToString(mDigest[:]))
+		return fmt.Errorf("Invalid Pop Signature %+v Pubkey %s Message %s", signature, hex.EncodeToString(p.PubKey.SerializeCompressed()), m)
 	}
 	return nil
 }
@@ -172,8 +174,7 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		m += ":" + strconv.FormatInt(int64(amount), 10)
 	}
 	fmt.Printf("\n\nFROM POP.GO\nUnitize Message: %s\n\n", m)
-	mDigest := sha256.Sum256([]byte(m))
-	err = p.verifyPopSigs(idx, mDigest[:], ownerSigs, PopSig)
+	err = p.verifyPopSigs(idx, m, ownerSigs, PopSig)
 	if err != nil {
 		return err
 	}
@@ -252,7 +253,7 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 
 	for _, source := range sources {
 
-		err = p.verifyPopSigs(source.Idx(), mDigest[:], ownerSigs, PopSig)
+		err = p.verifyPopSigs(source.Idx(), m, ownerSigs, PopSig)
 		if err != nil {
 			return err
 		}
@@ -350,9 +351,8 @@ func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]b
 		}
 	}
 	// fmt.Printf("Verify message %s \n", m)
-	mDigest := sha256.Sum256([]byte(m))
 
-	err = p.verifyPopSigs(idx, mDigest[:], ownerSigs, PopSig)
+	err = p.verifyPopSigs(idx, m, ownerSigs, PopSig)
 	if err != nil {
 		return err
 	}
