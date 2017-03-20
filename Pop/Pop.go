@@ -61,7 +61,7 @@ func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte
 
 	signature, err := btcec.ParseDERSignature(PopSig, btcec.S256())
 	if err != nil {
-		return fmt.Errorf("Bad popcode signature encoding %v", signature)
+		return fmt.Errorf("Bad popcode signature encoding %v", PopSig)
 	}
 	success := signature.Verify(mDigest[:], &p.PubKey)
 	if !success {
@@ -204,7 +204,6 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
 	return nil
-
 }
 
 type SourceOutput interface {
