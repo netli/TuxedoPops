@@ -40,8 +40,11 @@ func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte
 			}
 
 			for i, pubKey := range otx.Owners {
+				if usedKeys[i] {
+					continue
+				}
 				success := signature.Verify(mDigest[:], &pubKey)
-				if success && (usedKeys[i] == false) {
+				if success {
 					usedKeys[i] = true
 					validOwnerSigs++
 					break
