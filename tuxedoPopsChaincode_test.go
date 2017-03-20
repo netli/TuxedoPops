@@ -264,6 +264,27 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	}
 }
 
+// func altPossess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
+// 	transferArgs := TuxedoPopsTX.TransferOwners{}
+// 	transferArgs.Address = "74ded2036e988fc56e3cff77a40c58239591e921"
+// 	transferArgs.Data = "Test possess"
+// 	transferArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
+// 	ownerBytes, _ := hex.DecodeString("0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7")
+// 	transferArgs.Owners = [][]byte{ownerBytes}
+// 	transferArgs.Output = int32(idx)
+// 	ownerHex := hex.EncodeToString(ownerBytes)
+// 	hexPossessSig := generatePossessSig(counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+// 	var err error
+// 	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
+// 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
+// 	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
+
+// 	_, err = stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// }
+
 func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 

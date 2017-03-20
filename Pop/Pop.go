@@ -55,7 +55,7 @@ func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte
 			}
 		}
 		if validOwnerSigs < otx.Threshold {
-			return fmt.Errorf("Insufficient Signatures")
+			return fmt.Errorf("\n\nInsufficient Signatures (validOwnerSigs < otx.Threshold).\nnumber of valid owner sigs: (%d)\notx.Threshold: (%d)\nownerSigs: (%v)\n\n\n")
 		}
 	}
 
@@ -262,7 +262,6 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 
 		p.Outputs[source.Idx()].Amount -= source.Amount()
 		sourceAmounts[p.Outputs[source.Idx()].Type] += source.Amount()
-
 	}
 
 	/*
