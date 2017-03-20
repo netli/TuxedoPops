@@ -55,7 +55,7 @@ func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte
 			}
 		}
 		if validOwnerSigs < otx.Threshold {
-			return fmt.Errorf("\n\nInsufficient Signatures (validOwnerSigs < otx.Threshold).\nnumber of valid owner sigs: (%d)\notx.Threshold: (%d)\nownerSigs: (%v)\n\n\n")
+			return fmt.Errorf("\n\nInsufficient Signatures (validOwnerSigs < otx.Threshold).\nnumber of valid owner sigs: (%d)\notx.Threshold: (%d)\nownerSigs: (%v)\n\n\n", validOwnerSigs, otx.Threshold, ownerSigs)
 		}
 	}
 
