@@ -42,6 +42,10 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 				if success && (usedKeys[i] == false) {
 					usedKeys[i] = true
 					validOwnerSigs++
+					break
+				}
+				if i == len(otx.Owners)-1 {
+					return fmt.Errorf("Invalid Signature %s", hex.EncodeToString(signature.Serialize()))
 				}
 			}
 		}
