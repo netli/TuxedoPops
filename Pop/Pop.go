@@ -38,14 +38,14 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 			}
 
 			for i, pubKey := range otx.Owners {
-				success := signature.Verify(mDigest[:], &pubKey)
+				success := signature.Verify(mDigest, &pubKey)
 				if success && (usedKeys[i] == false) {
 					usedKeys[i] = true
 					validOwnerSigs++
 					break
 				}
 				if i == len(otx.Owners)-1 {
-					return fmt.Errorf("Invalid Signature %s", hex.EncodeToString(signature.Serialize()))
+					return fmt.Errorf("Invalid Signature %s on %s", hex.EncodeToString(signature.Serialize()), hex.EncodeToString(mDigest))
 				}
 			}
 		}
