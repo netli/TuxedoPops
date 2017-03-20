@@ -39,11 +39,11 @@ func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte
 				return fmt.Errorf("Bad Owner signature encoding %v", sigbytes)
 			}
 
-			for i, pubKey := range otx.Owners {
+			for i, ownerKey := range otx.Owners {
 				if usedKeys[i] {
 					continue
 				}
-				success := signature.Verify(mDigest[:], &pubKey)
+				success := signature.Verify(mDigest[:], &ownerKey)
 				if success {
 					usedKeys[i] = true
 					validOwnerSigs++
@@ -191,7 +191,6 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		p.Counter = newCounter[:]
 		destOut.Data = data
 		destOut.Amount = amount
-		destOut.Owners = []btcec.PublicKey{}
 		p.Outputs[idx].Amount -= amount
 		if p.Outputs[idx].Amount == 0 {
 			if idx != (len(p.Outputs) - 1) {
