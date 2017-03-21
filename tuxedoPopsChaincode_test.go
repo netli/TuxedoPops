@@ -370,6 +370,44 @@ func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	}
 }
 
+func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destPopcode *keyInfo, owners []*keyInfo, data string, amounts []int32, output int32) {
+	unitizeArgs := TuxedoPopsTX.Unitize{}
+	unitizeArgs.Data = data
+	unitizeArgs.DestAddress = destPopcode.address
+	unitizeArgs.DestAmounts = amounts
+
+	unitizeArgs.SourceAddress = sourcePopcode.address
+	unitizeArgs.SourceOutput = output
+	unitizeArgs.PopcodePubKey, _ = hex.DecodeString(sourcePopcode.pubKeyStr)
+	var err error
+	sourcePopcode.counter, err = getCounter(stub, sourcePopcode)
+	if err != nil {
+		t.Errorf("Error getting counter: (%v)\n", err.Error())
+		t.FailNow()
+	}
+
+	if len(owners) > 1 {
+		t.Errorf("length of owners slice is larger than 1. Length: (%d)\nCurrently this test works with a maximum of one owner\n", len(owners))
+		t.FailNow()
+	}
+
+	intAmounts := make([]int, len(amounts))
+	for i, amount := range amounts {
+		intAmounts[i] = int(amount)
+	}
+	ownerSig := generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, owners[0].privKeyStr)
+	unitizeArgs.OwnerSigs = [][]byte{ownerSig}
+	unitizeArgs.PopcodeSig = generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, sourcePopcode.privKeyStr)
+	unitizeArgsBytes, _ := proto.Marshal(&unitizeArgs)
+	unitizeArgsBytesStr := hex.EncodeToString(unitizeArgsBytes)
+
+	_, err = stub.MockInvoke("4", "unitize", []string{unitizeArgsBytesStr})
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+}
+
 func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int, amounts []int, data string, privateKeyStr string) []byte {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
@@ -851,5 +889,7 @@ func TestPopcodeChaincode(t *testing.T) {
 	newOwners[0] = tests[0].users.user2
 	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
 	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
-
+	altUnitize(t, stub, tests[0].popcodes.popcode1, tests[0].popcodes.popcode1, newOwners, "data", []int32{100}, 0)
 }
+
+// func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destPopcode *keyInfo, owners []*keyInfo, data string, amounts []int, output int) {
