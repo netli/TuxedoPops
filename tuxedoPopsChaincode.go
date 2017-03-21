@@ -322,7 +322,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Printf(err.Error())
 			return nil, err
 		}
-		stub.SetEvent("unitized", unitizeEventBytes)
+		stub.SetEvent("unitize", unitizeEventBytes)
 
 	case "combine":
 
