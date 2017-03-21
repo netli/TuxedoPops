@@ -123,12 +123,12 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo) {
 }
 
 //altMint takes in a key struct which holds input of private key, public key, and address
-func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo) {
+func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo, data string, createdType string, amount int) {
 	createArgs := TuxedoPopsTX.CreateTX{}
 	createArgs.Address = popcode.address
-	createArgs.Amount = 10
-	createArgs.Data = "Test Data"
-	createArgs.Type = "Test Asset"
+	createArgs.Amount = int32(amount)
+	createArgs.Data = data
+	createArgs.Type = createdType
 
 	creatorPubKeyBytes, err := hex.DecodeString(user.pubKeyStr)
 	if err != nil {
@@ -140,7 +140,7 @@ func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo
 		t.Errorf("error getting counterseed in altMint: (%s)", err.Error())
 		t.FailNow()
 	}
-	hexCreatorSig := generateCreateSig(popcode.counter, 10, "Test Asset", "Test Data", popcode.address, user.privKeyStr)
+	hexCreatorSig := generateCreateSig(popcode.counter, amount, createdType, data, popcode.address, user.privKeyStr)
 
 	createArgs.CreatorSig, err = hex.DecodeString(hexCreatorSig)
 	if err != nil {
@@ -264,26 +264,51 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	}
 }
 
-// func altPossess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
-// 	transferArgs := TuxedoPopsTX.TransferOwners{}
-// 	transferArgs.Address = "74ded2036e988fc56e3cff77a40c58239591e921"
-// 	transferArgs.Data = "Test possess"
-// 	transferArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-// 	ownerBytes, _ := hex.DecodeString("0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7")
-// 	transferArgs.Owners = [][]byte{ownerBytes}
-// 	transferArgs.Output = int32(idx)
-// 	ownerHex := hex.EncodeToString(ownerBytes)
-// 	hexPossessSig := generatePossessSig(counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
-// 	var err error
-// 	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
-// 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
-// 	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
+func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
+	prevOwners []*keyInfo, newOwners []*keyInfo, idx int, data string) {
 
-// 	_, err = stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// }
+	transferArgs := TuxedoPopsTX.TransferOwners{}
+	transferArgs.Address = popcode.address
+	transferArgs.Data = data
+	transferArgs.PopcodePubKey, _ = hex.DecodeString(popcode.pubKeyStr)
+	ownerBytes, _ := hex.DecodeString(newOwners[0].pubKeyStr)
+	transferArgs.Owners = [][]byte{ownerBytes}
+	var err error
+	popcode.counter, err = getCounter(stub, popcode)
+	if err != nil {
+		t.Errorf("error getting counter in altPossess: (%v)\n", err.Error())
+		t.FailNow()
+	}
+	ownerHex := hex.EncodeToString(ownerBytes)
+
+	fmt.Printf("\n\nlen prevOwners: (%d)\nprevOwners: (%v)\n", len(prevOwners), prevOwners)
+	transferArgs.PrevOwnerSigs = make([][]byte, len(prevOwners))
+
+	for i, owner := range prevOwners {
+		if owner != nil {
+			hexPrevOwnerSig := generatePossessSig(popcode.counter, idx, data, ownerHex, owner.privKeyStr)
+			transferArgs.PrevOwnerSigs[i], err = hex.DecodeString(hexPrevOwnerSig)
+			if err != nil {
+				t.Errorf("error decoding hexPrevOwnerSig:\ni=(%d)\nowner = (%v)\nerr: (%v)\n", i, owner, err.Error())
+				t.FailNow()
+			}
+
+		}
+	}
+	fmt.Printf("\n\nlen prevOwnerSigs: (%d)\nprevOwnerSigs: (%v)\n", len(transferArgs.PrevOwnerSigs), transferArgs.PrevOwnerSigs)
+
+	transferArgs.Output = int32(idx)
+	hexPossessSig := generatePossessSig(popcode.counter, idx, data, ownerHex, popcode.privKeyStr)
+	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
+	transferArgsBytes, _ := proto.Marshal(&transferArgs)
+	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
+
+	_, err = stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
+	if err != nil {
+		t.Errorf("POSSESS ERROR: (%v)", err.Error())
+		t.FailNow()
+	}
+}
 
 func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
@@ -748,6 +773,16 @@ type popcodes struct {
 	popcode7 *keyInfo
 }
 
+type possessInfo struct {
+	t          *testing.T
+	stub       *shim.MockStub
+	popcode    *keyInfo
+	prevOwners []*keyInfo
+	newOwners  []*keyInfo
+	idx        int
+	data       string
+}
+
 func TestPopcodeChaincode(t *testing.T) {
 	bst := new(tuxedoPopsChaincode)
 	stub := shim.NewMockStub("tuxedoPops", bst)
@@ -807,5 +842,14 @@ func TestPopcodeChaincode(t *testing.T) {
 	}
 
 	fmt.Printf("\n\n\nSTARTING NEW TESTING SUITE\n\n\n")
-	altMint1(t, stub, tests[0].users.user1, tests[0].popcodes.popcode2)
+	altMint1(t, stub, tests[0].users.user1, tests[0].popcodes.popcode1, "data", "Water", 100)
+	prevOwners := make([]*keyInfo, 1)
+	newOwners := make([]*keyInfo, 1)
+	newOwners[0] = tests[0].users.user1
+	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
+	prevOwners[0] = newOwners[0]
+	newOwners[0] = tests[0].users.user2
+	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
+	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
+
 }
