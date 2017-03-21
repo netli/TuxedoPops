@@ -122,6 +122,39 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo) {
 	}
 }
 
+//altMint takes in a key struct which holds input of private key, public key, and address
+func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo, data string, createdType string, amount int) {
+	createArgs := TuxedoPopsTX.CreateTX{}
+	createArgs.Address = popcode.address
+	createArgs.Amount = int32(amount)
+	createArgs.Data = data
+	createArgs.Type = createdType
+
+	creatorPubKeyBytes, err := hex.DecodeString(user.pubKeyStr)
+	if err != nil {
+		fmt.Println(err)
+	}
+	createArgs.CreatorPubKey = creatorPubKeyBytes
+	popcode.counter, err = getCounter(stub, popcode)
+	if err != nil {
+		t.Errorf("error getting counterseed in altMint: (%s)", err.Error())
+		t.FailNow()
+	}
+	hexCreatorSig := generateCreateSig(popcode.counter, amount, createdType, data, popcode.address, user.privKeyStr)
+
+	createArgs.CreatorSig, err = hex.DecodeString(hexCreatorSig)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	createArgBytes, err := proto.Marshal(&createArgs)
+	createArgBytesStr := hex.EncodeToString(createArgBytes)
+	_, err = stub.MockInvoke("3", "create", []string{createArgBytesStr})
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
 func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int, data string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
@@ -231,6 +264,52 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	}
 }
 
+func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
+	prevOwners []*keyInfo, newOwners []*keyInfo, idx int, data string) {
+
+	transferArgs := TuxedoPopsTX.TransferOwners{}
+	transferArgs.Address = popcode.address
+	transferArgs.Data = data
+	transferArgs.PopcodePubKey, _ = hex.DecodeString(popcode.pubKeyStr)
+	ownerBytes, _ := hex.DecodeString(newOwners[0].pubKeyStr)
+	transferArgs.Owners = [][]byte{ownerBytes}
+	var err error
+	popcode.counter, err = getCounter(stub, popcode)
+	if err != nil {
+		t.Errorf("error getting counter in altPossess: (%v)\n", err.Error())
+		t.FailNow()
+	}
+	ownerHex := hex.EncodeToString(ownerBytes)
+
+	fmt.Printf("\n\nlen prevOwners: (%d)\nprevOwners: (%v)\n", len(prevOwners), prevOwners)
+	transferArgs.PrevOwnerSigs = make([][]byte, len(prevOwners))
+
+	for i, owner := range prevOwners {
+		if owner != nil {
+			hexPrevOwnerSig := generatePossessSig(popcode.counter, idx, data, ownerHex, owner.privKeyStr)
+			transferArgs.PrevOwnerSigs[i], err = hex.DecodeString(hexPrevOwnerSig)
+			if err != nil {
+				t.Errorf("error decoding hexPrevOwnerSig:\ni=(%d)\nowner = (%v)\nerr: (%v)\n", i, owner, err.Error())
+				t.FailNow()
+			}
+
+		}
+	}
+	fmt.Printf("\n\nlen prevOwnerSigs: (%d)\nprevOwnerSigs: (%v)\n", len(transferArgs.PrevOwnerSigs), transferArgs.PrevOwnerSigs)
+
+	transferArgs.Output = int32(idx)
+	hexPossessSig := generatePossessSig(popcode.counter, idx, data, ownerHex, popcode.privKeyStr)
+	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
+	transferArgsBytes, _ := proto.Marshal(&transferArgs)
+	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
+
+	_, err = stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
+	if err != nil {
+		t.Errorf("POSSESS ERROR: (%v)", err.Error())
+		t.FailNow()
+	}
+}
+
 func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
@@ -327,12 +406,18 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 		fmt.Printf("error generating public key: %v", err)
 	}
 	keys.address = newAddress(keys.pubKeyStr)
+	keys.counter, err = getCounter(stub, keys)
+	if err != nil {
+		t.Errorf("error retrieving counterseed: (%v)", err.Error())
+	}
 
-	keys.counter = getCounter(t, stub, keys)
 	//mint transaction with keys and counterseed
 	altMint(t, stub, keys)
 
-	keys.counter = getCounter(t, stub, keys)
+	keys.counter, err = getCounter(stub, keys)
+	if err != nil {
+		t.Errorf("error retrieving counterseed: (%v)", err.Error())
+	}
 
 	// registerRecipe(t, stub)
 
@@ -447,17 +532,15 @@ func generateKeys() (*keyInfo, error) {
 	return keys, nil
 }
 
-func getCounter(t *testing.T, stub *shim.MockStub, keys *keyInfo) string {
+func getCounter(stub *shim.MockStub, keys *keyInfo) (string, error) {
 	//query balance to get counterSeed
 	bytes, err := stub.MockQuery("balance", []string{keys.address})
 	if err != nil {
-		t.Errorf("balance query failure\n")
-		t.FailNow()
+		return "", fmt.Errorf("balance query failure on address: (%s)\n", keys.address)
 	}
 	balanceResult := make(map[string]string)
-
 	json.Unmarshal(bytes, &balanceResult)
-	return balanceResult["Counter"]
+	return balanceResult["Counter"], nil
 }
 
 /*
@@ -481,10 +564,13 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 		if err != nil {
 			t.Errorf("error generating keys: (%v)\n", err.Error())
 		}
-		keys.counter = getCounter(t, stub, keys)
+
+		keys.counter, err = getCounter(stub, keys)
 		if err != nil {
-			t.Errorf("error retrieving counter in checkCounterSeedChange: (%v)\n", err.Error())
+			t.Errorf("error retrieving counterseed: (%v)", err.Error())
+			t.FailNow()
 		}
+
 		//mint transaction with keys and counterseed
 		altMint(t, stub, keys)
 
@@ -515,6 +601,144 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 	}
 }
 
+func generateUsers(stub *shim.MockStub) (*users, error) {
+	users := new(users)
+	var err error
+	users.user1, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user1.counter, err = getCounter(stub, users.user1)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	users.user2, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user2.counter, err = getCounter(stub, users.user2)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	users.user3, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user3.counter, err = getCounter(stub, users.user3)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	users.user4, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user4.counter, err = getCounter(stub, users.user4)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	users.user5, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user5.counter, err = getCounter(stub, users.user5)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	users.user6, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user6.counter, err = getCounter(stub, users.user6)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	users.user7, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generateUsers: (%v)\n", err.Error())
+	}
+	users.user7.counter, err = getCounter(stub, users.user7)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	return users, nil
+}
+
+func generatePopcodes(stub *shim.MockStub) (*popcodes, error) {
+	popcodes := new(popcodes)
+	var err error
+	popcodes.popcode1, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode1.counter, err = getCounter(stub, popcodes.popcode1)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	popcodes.popcode2, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode2.counter, err = getCounter(stub, popcodes.popcode2)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	popcodes.popcode3, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode3.counter, err = getCounter(stub, popcodes.popcode3)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	popcodes.popcode4, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode4.counter, err = getCounter(stub, popcodes.popcode4)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	popcodes.popcode5, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode5.counter, err = getCounter(stub, popcodes.popcode5)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	popcodes.popcode6, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode6.counter, err = getCounter(stub, popcodes.popcode6)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	popcodes.popcode7, err = generateKeys()
+	if err != nil {
+		return nil, fmt.Errorf("error generating keys in generatePopcodes: (%v)\n", err.Error())
+	}
+	popcodes.popcode7.counter, err = getCounter(stub, popcodes.popcode7)
+	if err != nil {
+		return nil, fmt.Errorf("error generating counterSeed in generateUsers: (%v)\n", err.Error())
+	}
+
+	return popcodes, nil
+}
+
 type keyInfo struct {
 	privKeyStr string
 	pubKeyStr  string
@@ -525,11 +749,38 @@ type keyInfo struct {
 type test struct {
 	t        *testing.T
 	stub     *shim.MockStub
-	user1    *keyInfo
-	user2    *keyInfo
+	users    *users
+	popcodes *popcodes
+}
+
+type users struct {
+	user1 *keyInfo
+	user2 *keyInfo
+	user3 *keyInfo
+	user4 *keyInfo
+	user5 *keyInfo
+	user6 *keyInfo
+	user7 *keyInfo
+}
+
+type popcodes struct {
 	popcode1 *keyInfo
 	popcode2 *keyInfo
-	data     string
+	popcode3 *keyInfo
+	popcode4 *keyInfo
+	popcode5 *keyInfo
+	popcode6 *keyInfo
+	popcode7 *keyInfo
+}
+
+type possessInfo struct {
+	t          *testing.T
+	stub       *shim.MockStub
+	popcode    *keyInfo
+	prevOwners []*keyInfo
+	newOwners  []*keyInfo
+	idx        int
+	data       string
 }
 
 func TestPopcodeChaincode(t *testing.T) {
@@ -574,26 +825,31 @@ func TestPopcodeChaincode(t *testing.T) {
 	checkCombine(t, stub)
 
 	//new testing suite in progress below:
+	testUsers, err := generateUsers(stub)
+	if err != nil {
+		t.Errorf("error generating users: (%v)\n", err.Error())
+		t.FailNow()
+	}
 
-	user1, err := generateKeys()
+	testPopcodes, err := generatePopcodes(stub)
 	if err != nil {
-		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
+		t.Errorf("error generating popcodes: (%v)\n", err.Error())
+		t.FailNow()
 	}
-	user1.counter = getCounter(t, stub, user1)
-	user2, err := generateKeys()
-	if err != nil {
-		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
-	}
-	popcode1, err := generateKeys()
-	if err != nil {
-		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
-	}
-	popcode2, err := generateKeys()
-	if err != nil {
-		t.Errorf("error generating keys in TestPopcodeChaincode: (%v)\n", err.Error())
-	}
+
 	var tests = []test{
-		{t, stub, user1, user2, popcode1, popcode2, "data"},
+		{t, stub, testUsers, testPopcodes},
 	}
-	altMint(t, stub, tests[0].user1)
+
+	fmt.Printf("\n\n\nSTARTING NEW TESTING SUITE\n\n\n")
+	altMint1(t, stub, tests[0].users.user1, tests[0].popcodes.popcode1, "data", "Water", 100)
+	prevOwners := make([]*keyInfo, 1)
+	newOwners := make([]*keyInfo, 1)
+	newOwners[0] = tests[0].users.user1
+	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
+	prevOwners[0] = newOwners[0]
+	newOwners[0] = tests[0].users.user2
+	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
+	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
+
 }

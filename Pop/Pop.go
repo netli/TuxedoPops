@@ -21,7 +21,9 @@ type Pop struct {
 	Outputs []OTX.SecP256k1Output
 }
 
-func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig []byte) error {
+func (p *Pop) verifyPopSigs(idx int, m string, ownerSigs [][]byte, PopSig []byte) error {
+
+	mDigest := sha256.Sum256([]byte(m))
 
 	if idx < 0 || idx >= len(p.Outputs) {
 		return fmt.Errorf("Invalid Source index %d\n %s\n", idx, p.ToJSON())
@@ -37,26 +39,33 @@ func (p *Pop) verifyPopSigs(idx int, mDigest []byte, ownerSigs [][]byte, PopSig 
 				return fmt.Errorf("Bad Owner signature encoding %v", sigbytes)
 			}
 
-			for i, pubKey := range otx.Owners {
-				success := signature.Verify(mDigest[:], &pubKey)
-				if success && (usedKeys[i] == false) {
+			for i, ownerKey := range otx.Owners {
+				if usedKeys[i] {
+					continue
+				}
+				success := signature.Verify(mDigest[:], &ownerKey)
+				if success {
 					usedKeys[i] = true
 					validOwnerSigs++
+					break
+				}
+				if i == len(otx.Owners)-1 {
+					return fmt.Errorf("Invalid Signature %s on %s", hex.EncodeToString(signature.Serialize()), m)
 				}
 			}
 		}
 		if validOwnerSigs < otx.Threshold {
-			return fmt.Errorf("Insufficient Signatures")
+			return fmt.Errorf("\n\nInsufficient Signatures (validOwnerSigs < otx.Threshold).\nnumber of valid owner sigs: (%d)\notx.Threshold: (%d)\nownerSigs: (%v)\n\n\n", validOwnerSigs, otx.Threshold, ownerSigs)
 		}
 	}
 
 	signature, err := btcec.ParseDERSignature(PopSig, btcec.S256())
 	if err != nil {
-		return fmt.Errorf("Bad popcode signature encoding %v", signature)
+		return fmt.Errorf("Bad popcode signature encoding %v", PopSig)
 	}
 	success := signature.Verify(mDigest[:], &p.PubKey)
 	if !success {
-		return fmt.Errorf("Invalid Pop Signature %+v Pubkey %s Message %s", signature, hex.EncodeToString(p.PubKey.SerializeCompressed()), hex.EncodeToString(mDigest[:]))
+		return fmt.Errorf("Invalid Pop Signature %+v Pubkey %s Message %s", signature, hex.EncodeToString(p.PubKey.SerializeCompressed()), m)
 	}
 	return nil
 }
@@ -168,8 +177,7 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		m += ":" + strconv.FormatInt(int64(amount), 10)
 	}
 	fmt.Printf("\n\nFROM POP.GO\nUnitize Message: %s\n\n", m)
-	mDigest := sha256.Sum256([]byte(m))
-	err = p.verifyPopSigs(idx, mDigest[:], ownerSigs, PopSig)
+	err = p.verifyPopSigs(idx, m, ownerSigs, PopSig)
 	if err != nil {
 		return err
 	}
@@ -183,7 +191,6 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		p.Counter = newCounter[:]
 		destOut.Data = data
 		destOut.Amount = amount
-		destOut.Owners = []btcec.PublicKey{}
 		p.Outputs[idx].Amount -= amount
 		if p.Outputs[idx].Amount == 0 {
 			if idx != (len(p.Outputs) - 1) {
@@ -197,7 +204,6 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 	newCounter := sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
 	return nil
-
 }
 
 type SourceOutput interface {
@@ -248,14 +254,13 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 
 	for _, source := range sources {
 
-		err = p.verifyPopSigs(source.Idx(), mDigest[:], ownerSigs, PopSig)
+		err = p.verifyPopSigs(source.Idx(), m, ownerSigs, PopSig)
 		if err != nil {
 			return err
 		}
 
 		p.Outputs[source.Idx()].Amount -= source.Amount()
 		sourceAmounts[p.Outputs[source.Idx()].Type] += source.Amount()
-
 	}
 
 	/*
@@ -346,9 +351,8 @@ func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]b
 		}
 	}
 	// fmt.Printf("Verify message %s \n", m)
-	mDigest := sha256.Sum256([]byte(m))
 
-	err = p.verifyPopSigs(idx, mDigest[:], ownerSigs, PopSig)
+	err = p.verifyPopSigs(idx, m, ownerSigs, PopSig)
 	if err != nil {
 		return err
 	}

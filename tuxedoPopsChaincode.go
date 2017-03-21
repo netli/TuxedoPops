@@ -206,9 +206,12 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("No value found in popcode")
 			return nil, errors.New("No value found in popcode")
 		}
-
 		popcode := Pop.Pop{}
 		popcode.FromBytes(popcodebytes)
+
+		if transferArgs.Output < 0 || int(transferArgs.Output) >= len(popcode.Outputs) {
+			return nil, fmt.Errorf("Invalid Output index %d %s", transferArgs.Output, popcode.ToJSON())
+		}
 		transferEvent.SourceCounter = popcode.Outputs[transferArgs.Output].PrevCounter
 		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
 		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
@@ -265,6 +268,9 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, errors.New("Could not get Popcode State")
 		}
 
+		if unitizeArgs.SourceOutput < 0 || int(unitizeArgs.SourceOutput) >= len(sourcePopcode.Outputs) {
+			return nil, fmt.Errorf("Invalid Output index %d %s", unitizeArgs.SourceOutput, sourcePopcode.ToJSON())
+		}
 		unitizeEvent.SourceCounter = sourcePopcode.Outputs[unitizeArgs.SourceOutput].PrevCounter
 		destAddress := unitizeArgs.DestAddress
 		destPopcodeBytes, err := stub.GetState("Popcode:" + destAddress)
