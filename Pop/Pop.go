@@ -99,11 +99,12 @@ func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKey
 		fmt.Printf("Invalid Creator Signature %s \n Pubkey:%v \n ", message, creatorKey)
 		return fmt.Errorf("Invalid Creator Signature %s\n Pubkey:%v ", message, creatorKey)
 	}
-
+	newCounter := sha256.Sum256(p.Counter)
+	p.Counter = newCounter[:]
 	output := OTX.New(creatorKey, amount, assetType, data, p.Counter)
 
 	p.Outputs = append(p.Outputs, *output)
-	newCounter := sha256.Sum256(p.Counter)
+	newCounter = sha256.Sum256(p.Counter)
 	p.Counter = newCounter[:]
 	return nil
 }
