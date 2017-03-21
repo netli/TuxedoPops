@@ -214,7 +214,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		transferEvent.SourceCounter = popcode.Outputs[transferArgs.Output].PrevCounter
 		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
-		transferEvent.DestCounter = popcode.Counter
+		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
 
 		if err != nil {
 			fmt.Printf(err.Error())
