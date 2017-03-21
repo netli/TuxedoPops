@@ -187,6 +187,7 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 
 		//I'm pretty sure this is a copy not a reference
 		destOut := p.Outputs[idx]
+		destOut.PrevCounter = make([]byte, len(dest.Counter))
 		copy(destOut.PrevCounter, dest.Counter)
 		newCounter := sha256.Sum256(dest.Counter)
 		dest.Counter = newCounter[:]
@@ -357,6 +358,7 @@ func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]b
 	}
 	p.Outputs[idx].Owners = newOwners
 	p.Outputs[idx].Data = data
+	p.Outputs[idx].PrevCounter = make([]byte, len(p.Counter))
 	copy(p.Outputs[idx].PrevCounter, p.Counter)
 
 	if threshold > 0 {
