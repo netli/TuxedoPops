@@ -126,7 +126,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
-			createEvent.DestCounter = popcode.Counter
+			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 			if err != nil {
 				fmt.Printf(err.Error())
 				return nil, err
@@ -156,7 +156,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 				fmt.Printf(err.Error())
 				return nil, err
 			}
-			createEvent.DestCounter = popcode.Counter
+			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 
 		}
 
