@@ -493,7 +493,9 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		fmt.Printf("error marshalling txCache in invoke: (%v)\n", err.Error())
 		return nil, fmt.Errorf("error marshalling txCache in invoke: (%v)\n", err.Error())
 	}
-	err = stub.PutState("TxCache", txCacheBytes)
+	if len(txCacheBytes) > 0 {
+		err = stub.PutState("TxCache", txCacheBytes)
+	}
 	if err != nil {
 		fmt.Printf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
 		return nil, fmt.Errorf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
