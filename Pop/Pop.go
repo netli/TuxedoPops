@@ -186,9 +186,9 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 
 		//I'm pretty sure this is a copy not a reference
 		destOut := p.Outputs[idx]
-		destOut.PrevCounter = p.Counter
-		newCounter := sha256.Sum256(p.Counter)
-		p.Counter = newCounter[:]
+		destOut.PrevCounter = dest.Counter
+		newCounter := sha256.Sum256(dest.Counter)
+		dest.Counter = newCounter[:]
 		destOut.Data = data
 		destOut.Amount = amount
 		p.Outputs[idx].Amount -= amount
@@ -201,8 +201,6 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		}
 		dest.Outputs = append(dest.Outputs, destOut)
 	}
-	newCounter := sha256.Sum256(p.Counter)
-	p.Counter = newCounter[:]
 	return nil
 }
 
