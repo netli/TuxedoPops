@@ -15,10 +15,12 @@ message TransferEvent{
     bytes DestCounter=2;
     string Address =3;
     int32 Output =4;
-    int32 Threshold =5;
-    repeated bytes Owners =6;
-    bytes PopcodePubKey =7;
-    string Data = 8;
+    int32 Amount =5;
+    string Type = 6;
+    int32 Threshold =7;
+    repeated bytes Owners =8;
+    bytes PopcodePubKey =9;
+    string Data = 10;
 }
 
 message UnitizeEvent{
@@ -30,6 +32,7 @@ message UnitizeEvent{
     repeated int32 DestAmounts =6;
     bytes PopcodePubKey =7;
     string Data =8;
+    string Type = 9;
 }
 
 message CombineEvent{

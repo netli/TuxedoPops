@@ -45,10 +45,12 @@ type TransferEvent struct {
 	DestCounter   []byte   `protobuf:"bytes,2,opt,name=DestCounter,proto3" json:"DestCounter,omitempty"`
 	Address       string   `protobuf:"bytes,3,opt,name=Address" json:"Address,omitempty"`
 	Output        int32    `protobuf:"varint,4,opt,name=Output" json:"Output,omitempty"`
-	Threshold     int32    `protobuf:"varint,5,opt,name=Threshold" json:"Threshold,omitempty"`
-	Owners        [][]byte `protobuf:"bytes,6,rep,name=Owners,proto3" json:"Owners,omitempty"`
-	PopcodePubKey []byte   `protobuf:"bytes,7,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
-	Data          string   `protobuf:"bytes,8,opt,name=Data" json:"Data,omitempty"`
+	Amount        int32    `protobuf:"varint,5,opt,name=Amount" json:"Amount,omitempty"`
+	Type          string   `protobuf:"bytes,6,opt,name=Type" json:"Type,omitempty"`
+	Threshold     int32    `protobuf:"varint,7,opt,name=Threshold" json:"Threshold,omitempty"`
+	Owners        [][]byte `protobuf:"bytes,8,rep,name=Owners,proto3" json:"Owners,omitempty"`
+	PopcodePubKey []byte   `protobuf:"bytes,9,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
+	Data          string   `protobuf:"bytes,10,opt,name=Data" json:"Data,omitempty"`
 }
 
 func (m *TransferEvent) Reset()         { *m = TransferEvent{} }
@@ -64,6 +66,7 @@ type UnitizeEvent struct {
 	DestAmounts   []int32  `protobuf:"varint,6,rep,name=DestAmounts" json:"DestAmounts,omitempty"`
 	PopcodePubKey []byte   `protobuf:"bytes,7,opt,name=PopcodePubKey,proto3" json:"PopcodePubKey,omitempty"`
 	Data          string   `protobuf:"bytes,8,opt,name=Data" json:"Data,omitempty"`
+	Type          string   `protobuf:"bytes,9,opt,name=Type" json:"Type,omitempty"`
 }
 
 func (m *UnitizeEvent) Reset()         { *m = UnitizeEvent{} }
