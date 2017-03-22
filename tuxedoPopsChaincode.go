@@ -244,7 +244,6 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		unitizeEvent.Data = unitizeArgs.Data
 		unitizeEvent.DestAddress = unitizeArgs.DestAddress
-		unitizeEvent.DestAmounts = unitizeArgs.DestAmounts
 		unitizeEvent.PopcodePubKey = unitizeArgs.PopcodePubKey
 		unitizeEvent.SourceAddress = unitizeArgs.SourceAddress
 		unitizeEvent.SourceOutput = unitizeArgs.SourceOutput
@@ -309,6 +308,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		// The idea here is to harvest the created Counter values for the destinations via revserse interation through the number of events coordinated
 		for index := len(destPopcode.Outputs) - 1; index > len(destPopcode.Outputs)-1-len(unitizeArgs.DestAmounts); index-- {
 			unitizeEvent.DestCounters = append(unitizeEvent.DestCounters, destPopcode.Outputs[index].PrevCounter)
+			unitizeEvent.DestAmounts = append(unitizeEvent.DestAmounts, int32(destPopcode.Outputs[index].Amount))
 		}
 		if err != nil {
 			fmt.Printf("Unitize error: %s", err.Error())
