@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"regexp"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -821,6 +823,29 @@ type possessInfo struct {
 	data       string
 }
 
+func getBalance(t *testing.T, stub *shim.MockStub, popcode *keyInfo) map[string]interface{} {
+	bytes, err := stub.MockQuery("balance", []string{popcode.address})
+	if err != nil {
+		t.Errorf("balance query failure on address: (%s)\n", popcode.address)
+		t.FailNow()
+	}
+	balanceResult := make(map[string]interface{})
+	json.Unmarshal(bytes, &balanceResult)
+	return balanceResult
+}
+
+func HandleError(t *testing.T, err error) (b bool) {
+	if err != nil {
+		/*pc would print out the package name and function in which error occurs if uncommented*/
+		/*pc,*/ _, fn, line, _ := runtime.Caller(1)
+		re := regexp.MustCompile("[^/]+$")
+
+		t.Errorf("\x1b[32m\n[ERROR] in %s\tat line: %d\n%v\x1b[0m\n\n" /*re.FindAllString(runtime.FuncForPC(pc).Name(), -1), */, re.FindAllString(fn, -1)[0], line, err)
+		b = true
+	}
+	return
+}
+
 func TestPopcodeChaincode(t *testing.T) {
 	bst := new(tuxedoPopsChaincode)
 	stub := shim.NewMockStub("tuxedoPops", bst)
@@ -875,21 +900,58 @@ func TestPopcodeChaincode(t *testing.T) {
 		t.FailNow()
 	}
 
-	var tests = []test{
-		{t, stub, testUsers, testPopcodes},
+	// var tests = []test{
+	// 	{t, stub, testUsers, testPopcodes},
+	// }
+
+	test1 := test{t, stub, testUsers, testPopcodes}
+
+	balance := getBalance(t, stub, test1.popcodes.popcode1)
+	fmt.Printf("\n\n\nbalance after mint (%s)\n\n\n", balance)
+	fmt.Printf("\n\n\nSTARTING NEW TESTING SUITE\n\n\n")
+	prevCounter := balance["Counter"]
+	altMint1(t, stub, test1.users.user1, test1.popcodes.popcode1, "data", "Water", 100)
+	balance = getBalance(t, stub, test1.popcodes.popcode1)
+	fmt.Printf("\n\n\nbalance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n", balance["Address"], balance["Counter"], balance["Outputs"])
+	if prevCounter == balance["Counter"] {
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to mint. Counter: (%s)", balance["Address"], balance["Counter"]))
 	}
 
-	fmt.Printf("\n\n\nSTARTING NEW TESTING SUITE\n\n\n")
-	altMint1(t, stub, tests[0].users.user1, tests[0].popcodes.popcode1, "data", "Water", 100)
+	//perform first possess
+	prevCounter = balance["Counter"]
 	prevOwners := make([]*keyInfo, 1)
 	newOwners := make([]*keyInfo, 1)
-	newOwners[0] = tests[0].users.user1
-	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
-	prevOwners[0] = newOwners[0]
-	newOwners[0] = tests[0].users.user2
-	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
-	altPossess(t, stub, tests[0].popcodes.popcode1, prevOwners, newOwners, 0, "data")
-	altUnitize(t, stub, tests[0].popcodes.popcode1, tests[0].popcodes.popcode1, newOwners, "data", []int32{100}, 0)
-}
+	newOwners[0] = test1.users.user1
+	altPossess(t, stub, test1.popcodes.popcode1, prevOwners, newOwners, 0, "data")
+	balance = getBalance(t, stub, test1.popcodes.popcode1)
+	if prevCounter == balance["Counter"] {
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)", balance["Address"], balance["Counter"]))
+	}
 
-// func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destPopcode *keyInfo, owners []*keyInfo, data string, amounts []int, output int) {
+	//possess an owned popcode
+	prevCounter = balance["Counter"]
+	prevOwners[0] = newOwners[0]
+	newOwners[0] = test1.users.user2
+	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
+	altPossess(t, stub, test1.popcodes.popcode1, prevOwners, newOwners, 0, "data")
+	balance = getBalance(t, stub, test1.popcodes.popcode1)
+	if prevCounter == balance["Counter"] {
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)", balance["Address"], balance["Counter"]))
+	}
+
+	fmt.Printf("\n\n\nbefore unitize: balance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n", balance["Address"], balance["Counter"], balance["Outputs"])
+	//unitize owned output into two outputs in the same popcode
+	prevCounter = balance["Counter"]
+	altUnitize(t, stub, test1.popcodes.popcode1, test1.popcodes.popcode1, newOwners, "data", []int32{50, 25, 25}, 0)
+	balance = getBalance(t, stub, test1.popcodes.popcode1)
+	if prevCounter == balance["Counter"] {
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to unitize. Counter: (%s)", balance["Address"], balance["Counter"]))
+	}
+	fmt.Printf("\n\n\nafter unitize: balance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n", balance["Address"], balance["Counter"], balance["Outputs"])
+
+	// fmt.Printf("\n\n\n\nbalance on popcode address (%v):\n(%v)\n\n\n\n", test1.popcodes.popcode1.address, balanceResult)
+	altUnitize(t, stub, test1.popcodes.popcode1, test1.popcodes.popcode2, newOwners, "data", []int32{100}, 0)
+	// fmt.Printf("\n\n\n\nbalance on popcode address (%v):\n(%v)\n\n\n\n", test1.popcodes.popcode1.address, balanceResult)
+	altUnitize(t, stub, test1.popcodes.popcode2, test1.popcodes.popcode2, newOwners, "data", []int32{50, 50}, 0)
+	// fmt.Printf("\n\n\n\nbalance on popcode address (%v):\n(%v)\n\n\n\n", tests[0].popcodes.popcode1.address, balanceResult)
+}
