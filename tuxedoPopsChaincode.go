@@ -126,7 +126,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
-			createEvent.DestCounter = popcode.Counter
+			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 			if err != nil {
 				fmt.Printf(err.Error())
 				return nil, err
@@ -156,7 +156,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 				fmt.Printf(err.Error())
 				return nil, err
 			}
-			createEvent.DestCounter = popcode.Counter
+			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 
 		}
 
@@ -215,6 +215,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		transferEvent.SourceCounter = popcode.Outputs[transferArgs.Output].PrevCounter
 		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
 		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
+		transferEvent.Amount = int32(popcode.Outputs[transferArgs.Output].Amount)
+		transferEvent.Type = popcode.Outputs[transferArgs.Output].Type
 
 		if err != nil {
 			fmt.Printf(err.Error())
@@ -242,7 +244,6 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		unitizeEvent.Data = unitizeArgs.Data
 		unitizeEvent.DestAddress = unitizeArgs.DestAddress
-		unitizeEvent.DestAmounts = unitizeArgs.DestAmounts
 		unitizeEvent.PopcodePubKey = unitizeArgs.PopcodePubKey
 		unitizeEvent.SourceAddress = unitizeArgs.SourceAddress
 		unitizeEvent.SourceOutput = unitizeArgs.SourceOutput
@@ -307,6 +308,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		// The idea here is to harvest the created Counter values for the destinations via revserse interation through the number of events coordinated
 		for index := len(destPopcode.Outputs) - 1; index > len(destPopcode.Outputs)-1-len(unitizeArgs.DestAmounts); index-- {
 			unitizeEvent.DestCounters = append(unitizeEvent.DestCounters, destPopcode.Outputs[index].PrevCounter)
+			unitizeEvent.DestAmounts = append(unitizeEvent.DestAmounts, int32(destPopcode.Outputs[index].Amount))
 		}
 		if err != nil {
 			fmt.Printf("Unitize error: %s", err.Error())
@@ -402,8 +404,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		err = popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSig,
 			int(combineArgs.Amount), combineArgs.Recipe, recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
-		combineEvent.DestCounter = popcode.Counter
-
+		combineEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
@@ -493,7 +494,9 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		fmt.Printf("error marshalling txCache in invoke: (%v)\n", err.Error())
 		return nil, fmt.Errorf("error marshalling txCache in invoke: (%v)\n", err.Error())
 	}
-	err = stub.PutState("TxCache", txCacheBytes)
+	if len(txCacheBytes) > 0 {
+		err = stub.PutState("TxCache", txCacheBytes)
+	}
 	if err != nil {
 		fmt.Printf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
 		return nil, fmt.Errorf("error putting txCache to ledger in invoke: (%v)\n", err.Error())

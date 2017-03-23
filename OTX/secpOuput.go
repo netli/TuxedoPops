@@ -34,7 +34,8 @@ func New(creator *btcec.PublicKey, amount int, assetType string, TxData string, 
 	code.Amount = amount
 	code.Creator = creator
 	code.Data = TxData
-	code.PrevCounter = counter
+	code.PrevCounter = make([]byte, len(counter))
+	copy(code.PrevCounter, counter)
 	return &code
 }
 

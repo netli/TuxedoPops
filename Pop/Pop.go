@@ -99,12 +99,13 @@ func (p *Pop) CreateOutput(amount int, assetType string, data string, creatorKey
 		fmt.Printf("Invalid Creator Signature %s \n Pubkey:%v \n ", message, creatorKey)
 		return fmt.Errorf("Invalid Creator Signature %s\n Pubkey:%v ", message, creatorKey)
 	}
-
+	newCounter := sha256.Sum256(p.Counter)
+	p.Counter = newCounter[:]
 	output := OTX.New(creatorKey, amount, assetType, data, p.Counter)
 
 	p.Outputs = append(p.Outputs, *output)
-	newCounter := sha256.Sum256(p.Counter)
-	p.Counter = newCounter[:]
+	secondCounter := sha256.Sum256(p.Counter)
+	p.Counter = secondCounter[:]
 	return nil
 }
 
@@ -186,9 +187,10 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 
 		//I'm pretty sure this is a copy not a reference
 		destOut := p.Outputs[idx]
-		destOut.PrevCounter = p.Counter
-		newCounter := sha256.Sum256(p.Counter)
-		p.Counter = newCounter[:]
+		destOut.PrevCounter = make([]byte, len(dest.Counter))
+		copy(destOut.PrevCounter, dest.Counter)
+		newCounter := sha256.Sum256(dest.Counter)
+		dest.Counter = newCounter[:]
 		destOut.Data = data
 		destOut.Amount = amount
 		p.Outputs[idx].Amount -= amount
@@ -201,8 +203,6 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 		}
 		dest.Outputs = append(dest.Outputs, destOut)
 	}
-	newCounter := sha256.Sum256(p.Counter)
-	p.Counter = newCounter[:]
 	return nil
 }
 
@@ -358,7 +358,8 @@ func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]b
 	}
 	p.Outputs[idx].Owners = newOwners
 	p.Outputs[idx].Data = data
-	p.Outputs[idx].PrevCounter = p.Counter
+	p.Outputs[idx].PrevCounter = make([]byte, len(p.Counter))
+	copy(p.Outputs[idx].PrevCounter, p.Counter)
 
 	if threshold > 0 {
 		p.Outputs[idx].Threshold = threshold
