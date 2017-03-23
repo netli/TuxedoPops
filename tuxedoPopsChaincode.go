@@ -242,6 +242,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			fmt.Println("Invalid argument expected Unitize protocol buffer")
 			return nil, fmt.Errorf("Invalid argument expected Unitize protocol buffer %s", err.Error())
 		}
+
+		if unitizeArgs.SourceAddress == unitizeArgs.DestAddress {
+			return nil, fmt.Errorf("The source address %s must be different from dest address %s", unitizeArgs.SourceAddress, unitizeArgs.DestAddress)
+		}
+
 		unitizeEvent.Data = unitizeArgs.Data
 		unitizeEvent.DestAddress = unitizeArgs.DestAddress
 		unitizeEvent.PopcodePubKey = unitizeArgs.PopcodePubKey
