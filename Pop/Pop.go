@@ -247,7 +247,6 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	m += ":" + strconv.FormatInt(int64(createdAmount), 10)
 	m += ":" + data
 
-	fmt.Printf("\n\nFROM POP.GO\nCombine Message: %s\n\n", m)
 	mDigest := sha256.Sum256([]byte(m))
 
 	sourceAmounts := make(map[string]int)
