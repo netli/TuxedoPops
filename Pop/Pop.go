@@ -177,7 +177,8 @@ func (p *Pop) UnitizeOutput(idx int, amounts []int, data string, dest *Pop, owne
 	for _, amount := range amounts {
 		m += ":" + strconv.FormatInt(int64(amount), 10)
 	}
-	fmt.Printf("\n\nFROM POP.GO\nUnitize Message: %s\n\n", m)
+	fmt.Printf("\n\nFROM POP.GO UnitizeOutput\nUnitize Message: %s\n\n", m)
+
 	err = p.verifyPopSigs(idx, m, ownerSigs, PopSig)
 	if err != nil {
 		return err

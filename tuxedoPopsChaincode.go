@@ -246,7 +246,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		if unitizeArgs.SourceAddress == unitizeArgs.DestAddress {
 			return nil, fmt.Errorf("The source address %s must be different from dest address %s", unitizeArgs.SourceAddress, unitizeArgs.DestAddress)
 		}
-
+		fmt.Printf("\n\n\nOWNERSIGS for UNITIZE: (%v)\n\n", unitizeArgs.OwnerSigs)
 		unitizeEvent.Data = unitizeArgs.Data
 		unitizeEvent.DestAddress = unitizeArgs.DestAddress
 		unitizeEvent.PopcodePubKey = unitizeArgs.PopcodePubKey
@@ -309,15 +309,18 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		}
 		err = sourcePopcode.UnitizeOutput(int(unitizeArgs.SourceOutput), convertedAmounts, unitizeArgs.Data,
 			&destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
-
-		// The idea here is to harvest the created Counter values for the destinations via revserse interation through the number of events coordinated
-		for index := len(destPopcode.Outputs) - 1; index > len(destPopcode.Outputs)-1-len(unitizeArgs.DestAmounts); index-- {
-			unitizeEvent.DestCounters = append(unitizeEvent.DestCounters, destPopcode.Outputs[index].PrevCounter)
-			unitizeEvent.DestAmounts = append(unitizeEvent.DestAmounts, int32(destPopcode.Outputs[index].Amount))
-		}
 		if err != nil {
 			fmt.Printf("Unitize error: %s", err.Error())
 			return nil, fmt.Errorf("Unitize error: %s", err.Error())
+		}
+
+		// The idea here is to harvest the created Counter values for the destinations via revserse interation through the number of events coordinated
+		for index := len(destPopcode.Outputs) - 1; index > len(destPopcode.Outputs)-1-len(unitizeArgs.DestAmounts); index-- {
+			fmt.Printf("\x1b[32m\n\n\ndestPopcode.Address: (%s)\ndestpopcode.Outputs: (%v)\nindex: (%d)\nnumber of destination amounts: (%d)\nstopping condition: index <= (%d)\n\n\x1b[0m",
+				destPopcode.Address, destPopcode.Outputs, index, len(unitizeArgs.DestAmounts), len(destPopcode.Outputs)-1-len(unitizeArgs.DestAmounts))
+
+			unitizeEvent.DestCounters = append(unitizeEvent.DestCounters, destPopcode.Outputs[index].PrevCounter)
+			unitizeEvent.DestAmounts = append(unitizeEvent.DestAmounts, int32(destPopcode.Outputs[index].Amount))
 		}
 
 		err = stub.PutState("Popcode:"+sourceAddress, sourcePopcode.ToBytes())

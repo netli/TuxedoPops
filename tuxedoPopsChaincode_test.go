@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -254,7 +255,7 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	transferArgs.Owners = [][]byte{ownerBytes}
 	transferArgs.Output = int32(idx)
 	ownerHex := hex.EncodeToString(ownerBytes)
-	hexPossessSig := generatePossessSig(counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+	hexPossessSig := generatePossessSig(t, counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
 	var err error
 	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
@@ -273,22 +274,35 @@ func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
 	transferArgs.Address = popcode.address
 	transferArgs.Data = data
 	transferArgs.PopcodePubKey, _ = hex.DecodeString(popcode.pubKeyStr)
-	ownerBytes, _ := hex.DecodeString(newOwners[0].pubKeyStr)
-	transferArgs.Owners = [][]byte{ownerBytes}
+	// ownerBytes, _ := hex.DecodeString(newOwners[0].pubKeyStr)
+	// transferArgs.Owners = [][]byte{ownerBytes}
+	transferArgs.Owners = [][]byte{}
+	for _, owner := range newOwners {
+		ownerBytes, err := hex.DecodeString(owner.pubKeyStr)
+		if err != nil {
+			HandleError(t, fmt.Errorf("error decoding public key string (%s) for user address (%s)\n", owner.pubKeyStr, owner.address))
+			t.FailNow()
+		}
+		transferArgs.Owners = append(transferArgs.Owners, ownerBytes)
+	}
 	var err error
 	popcode.counter, err = getCounter(stub, popcode)
 	if err != nil {
 		t.Errorf("error getting counter in altPossess: (%v)\n", err.Error())
 		t.FailNow()
 	}
-	ownerHex := hex.EncodeToString(ownerBytes)
+	newOwnersSlice := []string{}
+	for _, owner := range transferArgs.Owners {
+		newOwnersSlice = append(newOwnersSlice, hex.EncodeToString(owner))
+	}
 
+	newOwnersString := strings.Join(newOwnersSlice, ",")
 	fmt.Printf("\n\nlen prevOwners: (%d)\nprevOwners: (%v)\n", len(prevOwners), prevOwners)
 	transferArgs.PrevOwnerSigs = make([][]byte, len(prevOwners))
 
 	for i, owner := range prevOwners {
 		if owner != nil {
-			hexPrevOwnerSig := generatePossessSig(popcode.counter, idx, data, ownerHex, owner.privKeyStr)
+			hexPrevOwnerSig := generatePossessSig(t, popcode.counter, idx, data, newOwnersString, owner.privKeyStr)
 			transferArgs.PrevOwnerSigs[i], err = hex.DecodeString(hexPrevOwnerSig)
 			if err != nil {
 				t.Errorf("error decoding hexPrevOwnerSig:\ni=(%d)\nowner = (%v)\nerr: (%v)\n", i, owner, err.Error())
@@ -300,7 +314,7 @@ func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
 	fmt.Printf("\n\nlen prevOwnerSigs: (%d)\nprevOwnerSigs: (%v)\n", len(transferArgs.PrevOwnerSigs), transferArgs.PrevOwnerSigs)
 
 	transferArgs.Output = int32(idx)
-	hexPossessSig := generatePossessSig(popcode.counter, idx, data, ownerHex, popcode.privKeyStr)
+	hexPossessSig := generatePossessSig(t, popcode.counter, idx, data, newOwnersString, popcode.privKeyStr)
 	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
 	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
@@ -312,23 +326,24 @@ func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
 	}
 }
 
-func generatePossessSig(CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
-	privKeyByte, _ := hex.DecodeString(privateKeyStr)
+func generatePossessSig(t *testing.T, CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
+	privKeyBytes, _ := hex.DecodeString(privateKeyStr)
 
-	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
+	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyBytes)
 
 	message := CounterSeedStr + ":" + strconv.FormatInt(int64(outputIdx), 10) + ":" + data
-	newOwnersTmp, err := hex.DecodeString(newOwnersHex)
-	if err != nil {
-		fmt.Println(err)
-	}
-	newOwners := [][]byte{newOwnersTmp}
-
-	for _, newO := range newOwners {
+	// newOwnersTmp, err := hex.DecodeString(newOwnersHex)
+	// if err != nil {
+	// 	HandleError(t, fmt.Errorf("error decoding new owners pubkey (%s)", owner))
+	// 	t.FailNow()
+	// }
+	newOwnersStrings := strings.Split(newOwnersHex, ",")
+	// newOwners := [][]byte{newOwnersTmp}
+	for _, owner := range newOwnersStrings {
 		message += ":"
-		message += hex.EncodeToString(newO)
+		message += owner
 	}
-	// fmt.Printf("Signed message %s \n", message)
+	fmt.Printf("\n\n\nSigned POSSESS message %s \n\n\n", message)
 	mDigest := sha256.Sum256([]byte(message))
 	sig, _ := privKey.Sign(mDigest[:])
 	return hex.EncodeToString(sig.Serialize())
@@ -388,17 +403,22 @@ func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destP
 		t.FailNow()
 	}
 
-	if len(owners) > 1 {
-		t.Errorf("length of owners slice is larger than 1. Length: (%d)\nCurrently this test works with a maximum of one owner\n", len(owners))
-		t.FailNow()
-	}
+	// if len(owners) > 1 {
+	// 	t.Errorf("length of owners slice is larger than 1. Length: (%d)\nCurrently this test works with a maximum of one owner\n", len(owners))
+	// 	t.FailNow()
+	// }
 
 	intAmounts := make([]int, len(amounts))
 	for i, amount := range amounts {
 		intAmounts[i] = int(amount)
 	}
-	ownerSig := generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, owners[0].privKeyStr)
-	unitizeArgs.OwnerSigs = [][]byte{ownerSig}
+
+	unitizeArgs.OwnerSigs = [][]byte{}
+	for _, owner := range owners {
+		ownerSig := generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, owner.privKeyStr)
+		unitizeArgs.OwnerSigs = append(unitizeArgs.OwnerSigs, ownerSig)
+	}
+
 	unitizeArgs.PopcodeSig = generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, sourcePopcode.privKeyStr)
 	unitizeArgsBytes, _ := proto.Marshal(&unitizeArgs)
 	unitizeArgsBytesStr := hex.EncodeToString(unitizeArgsBytes)
@@ -587,61 +607,49 @@ func getCounter(stub *shim.MockStub, keys *keyInfo) (string, error) {
 type balanceJSON struct {
 	Address string
 	Counter string
-	Outputs []interface{}
+	Outputs []string
 }
 
-type finalJSON struct {
+type finalBalanceJSON struct {
 	Address string
 	Counter string
-	Outputs []interface{}
+	Outputs []outputJSON
 }
 
 type outputJSON struct {
-	Owners      [][]byte
-	Threshold   int64
-	Amount      int64
-	Type        string
-	Data        string
-	Recipe      string
-	Creator     []byte
-	PrevCounter []byte
+	Owners      []string `json:"Owners"`
+	Threshold   int64    `json:"Threshold"`
+	Amount      int64    `json:"Amount"`
+	Type        string   `json:"Type"`
+	Data        string   `json:"Data"`
+	Recipe      string   `json:"Recipe"`
+	Creator     string   `json:"Creator"`
+	PrevCounter string   `json:"PrevCounter"`
 }
 
-func getBalance(t *testing.T, stub *shim.MockStub, keys *keyInfo) balanceJSON {
+func getBalance(t *testing.T, stub *shim.MockStub, keys *keyInfo) finalBalanceJSON {
 	balance := balanceJSON{}
 	bytes, err := stub.MockQuery("balance", []string{keys.address})
 	if err != nil {
 		HandleError(t, fmt.Errorf("balance query failure on address: (%s)\n", keys.address))
 	}
-	// jsonPop.Address = p.Address
-	// jsonPop.Counter = hex.EncodeToString(p.Counter)
-	// for _, o := range p.Outputs {
-	// 	jsonPop.Outputs = append(jsonPop.Outputs, string(o.ToJSON()))
-	// }
 
 	err = json.Unmarshal(bytes, &balance)
 	if err != nil {
 		HandleError(t, fmt.Errorf("error unmarshalling balance for address :(%s)", keys.address))
 		t.FailNow()
 	}
-	// result := finalJSON
-	// result.Address = balance.Address
-	// result.Counter = balance.Counter
-
-	// for _, output := range balance.Outputs {
-	// 	fmt.Printf("\n\noutput (%v)\n\n\n", output)
-
-	// 	var tmp map[string]interface{}
-
-	// 	json.Unmarshal([]byte(output.(string)), &tmp)
-	// 	// output = tmp
-	// 	// fmt.Printf("output: (%s)", tmp["Owners"])
-	// }
-	// for _, output := range balance.Outputs {
-	// 	fmt.Printf("\n\noutput (%v)\n\n\n", len(output.(map[string]interface{})["Owners"].([]string)))
-	// }
-
-	return balance
+	balanceResult := finalBalanceJSON{}
+	balanceResult.Address = balance.Address
+	balanceResult.Counter = balance.Counter
+	for _, output := range balance.Outputs {
+		var tmp outputJSON
+		if err := json.Unmarshal([]byte(output), &tmp); err != nil {
+			HandleError(t, fmt.Errorf("Error unmarshalling balance output (%v) into outputJSON struct\nERR: (%s)", output, err.Error()))
+		}
+		balanceResult.Outputs = append(balanceResult.Outputs, tmp)
+	}
+	return balanceResult
 }
 
 // func getBalance(t *testing.T, stub *shim.MockStub, keys *keyInfo) {
@@ -972,12 +980,12 @@ func TestPopcodeChaincode(t *testing.T) {
 
 	//MINT
 	balance := getBalance(t, stub, test1.popcodes.popcode1)
-	fmt.Printf("\n\n\nbalance before mint (%s)\n\n\n", balance)
+	fmt.Printf("\n\n\nbalance before mint (%v)\n\n\n", balance)
 	prevCounter := balance.Counter
 	prevNumberOfOutputs := len(balance.Outputs)
 	altMint1(t, stub, test1.users.user1, test1.popcodes.popcode1, "data", "Water", 100)
 	balance = getBalance(t, stub, test1.popcodes.popcode1)
-	fmt.Printf("\n\n\nbalance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n", balance.Address, balance.Counter, balance.Outputs)
+	fmt.Printf("\n\n\nbalance on popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n", balance.Address, balance.Counter, balance.Outputs)
 	if prevCounter == balance.Counter {
 		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to mint. Counter: (%s)", balance.Address, balance.Counter))
 	}
@@ -987,54 +995,75 @@ func TestPopcodeChaincode(t *testing.T) {
 
 	//POSSESS
 	//perform first possess
-	//check counterseed change, number of owners, owner change
+	//output index used for possess
+	output := 0
 	prevCounter = balance.Counter
-	// prevNumberOfOwners := balance["Outputs"].([]interface{})
 	prevOwners := make([]*keyInfo, 1)
 	newOwners := make([]*keyInfo, 1)
 	newOwners[0] = test1.users.user1
-	altPossess(t, stub, test1.popcodes.popcode1, prevOwners, newOwners, 0, "data")
+	altPossess(t, stub, test1.popcodes.popcode1, prevOwners, newOwners, output, "data")
 	balance = getBalance(t, stub, test1.popcodes.popcode1)
 	if prevCounter == balance.Counter {
 		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)", balance.Address, balance.Counter))
 	}
+	if len(balance.Outputs[output].Owners) != len(newOwners) {
+		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\nnumber of owners got (%d). Want (%d)\noutputs: (%v)",
+			balance.Address, len(balance.Outputs[output].Owners), len(newOwners), balance.Outputs))
+	}
+	for i, owner := range newOwners {
+		if balance.Outputs[output].Owners[i] != owner.pubKeyStr {
+			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n", i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
+		}
+	}
 
 	//possess an owned popcode
+	//multiple new owners
 	//check counterseed change, number of owners, owner change
 	prevCounter = balance.Counter
 	prevOwners[0] = newOwners[0]
 	newOwners[0] = test1.users.user2
+	newOwners = append(newOwners, test1.users.user3)
 	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
-	altPossess(t, stub, test1.popcodes.popcode1, prevOwners, newOwners, 0, "data")
+	altPossess(t, stub, test1.popcodes.popcode1, prevOwners, newOwners, output, "data")
 	balance = getBalance(t, stub, test1.popcodes.popcode1)
 	if prevCounter == balance.Counter {
 		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)", balance.Address, balance.Counter))
 	}
-
-	//TODO: possess transaction with multiple new owners
+	if len(balance.Outputs[output].Owners) != len(newOwners) {
+		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\nnumber of owners got (%d). Want (%d)\noutputs: (%v)",
+			balance.Address, len(balance.Outputs[output].Owners), len(newOwners), balance.Outputs))
+	}
+	for i, owner := range newOwners {
+		if balance.Outputs[output].Owners[i] != owner.pubKeyStr {
+			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n", i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
+		}
+	}
 
 	//UNITIZE
 	//check counterseed change, change in number of outputs, and change in quantity of units in ouputs
-	balance = getBalance(t, stub, test1.popcodes.popcode1)
+	owners := newOwners
+	sourceBalance := getBalance(t, stub, test1.popcodes.popcode1)
 	//unitize owned output into different popcode
-	fmt.Printf("\n\n\nbefore unitize: balance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n\n", balance.Address, balance.Counter, balance.Outputs)
+	fmt.Printf("\n\n\nbefore unitize: balance on source popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n\n", sourceBalance.Address, sourceBalance.Counter, sourceBalance.Outputs)
 	// prevNumberOfOutputs := len(balance["Outputs"].([]interface{}))
 	//unitize owned output into two outputs in the same popcode
-	prevCounter1 := balance.Counter
-	balance2 := getBalance(t, stub, test1.popcodes.popcode2)
-	prevCounter2 := balance2.Counter
-	altUnitize(t, stub, test1.popcodes.popcode1, test1.popcodes.popcode2, newOwners, "data", []int32{50, 25, 25}, 0)
-	balance1 := getBalance(t, stub, test1.popcodes.popcode1)
-	if prevCounter1 != balance1.Counter {
-		HandleError(t, fmt.Errorf("counter of source popcode (address: %s) changed after call to unitize. Counter: (%s)", balance1.Address, balance1.Counter))
+	sourcePrevCounter := sourceBalance.Counter
+	destBalance := getBalance(t, stub, test1.popcodes.popcode2)
+	fmt.Printf("\n\n\nbefore unitize: balance on destination popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n\n", destBalance.Address, destBalance.Counter, destBalance.Outputs)
+
+	destPrevCounter := destBalance.Counter
+	altUnitize(t, stub, test1.popcodes.popcode1, test1.popcodes.popcode2, owners, "data", []int32{50, 50}, int32(output))
+	sourceBalance = getBalance(t, stub, test1.popcodes.popcode1)
+	if sourcePrevCounter != sourceBalance.Counter {
+		HandleError(t, fmt.Errorf("counter of source popcode (address: %s) changed after call to unitize. Counter: (%s)", sourceBalance.Address, sourceBalance.Counter))
 	}
-	balance2 = getBalance(t, stub, test1.popcodes.popcode2)
-	if prevCounter2 == balance2.Counter {
-		HandleError(t, fmt.Errorf("counter of destination popcode( (address: %s) did not change after call to unitize. Counter: (%s)", balance2.Address, balance2.Counter))
+	destBalance = getBalance(t, stub, test1.popcodes.popcode2)
+	if destPrevCounter == destBalance.Counter {
+		HandleError(t, fmt.Errorf("counter of destination popcode( (address: %s) did not change after call to unitize. Counter: (%s)", destBalance.Address, destBalance.Counter))
 	}
 
-	fmt.Printf("\n\n\nafter unitize: balance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n", balance1.Address, balance1.Counter, balance1.Outputs)
-	fmt.Printf("\n\n\nafter unitize: balance on popcode (%s)\ncounter: (%s)\noutputs: (%s)\n\n", balance2.Address, balance2.Counter, balance2.Outputs)
+	fmt.Printf("\n\n\nafter unitize: balance on source popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n", sourceBalance.Address, sourceBalance.Counter, sourceBalance.Outputs)
+	fmt.Printf("\n\n\nafter unitize: balance on destination popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n", destBalance.Address, destBalance.Counter, destBalance.Outputs)
 
 	// // fmt.Printf("\n\n\n\nbalance on popcode address (%v):\n(%v)\n\n\n\n", test1.popcodes.popcode1.address, balanceResult)
 	// altUnitize(t, stub, test1.popcodes.popcode1, test1.popcodes.popcode2, newOwners, "data", []int32{100}, 0)
