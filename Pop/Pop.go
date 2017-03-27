@@ -296,7 +296,8 @@ func (p *Pop) CombineOutputs(sources []SourceOutput, ownerSigs [][]byte, PopPubK
 	for _, ingredient := range recipe.Ingredients {
 		sourceAmt := sourceAmounts[ingredient.Type]
 		if (int64(sourceAmt) / ingredient.Numerator * ingredient.Denominator) != int64(createdAmount) {
-			return fmt.Errorf("Ratio invalid for %s", ingredient.Type)
+			return fmt.Errorf("Ratio invalid for %s\n\nsource amount (%d) divided by numerator for ingredient %s (%d) * denominator for ingredient %s (%d) should be equal to created amount of %d.\n\nGot (amount = %d)/(numerator = %d) * (denominator = %d) = %d\nWant (amount/numerator * denominator = %d)",
+				ingredient.Type, sourceAmt, ingredient.Type, ingredient.Numerator, ingredient.Type, ingredient.Denominator, createdAmount, sourceAmt, ingredient.Numerator, ingredient.Denominator, (int64(sourceAmt) / ingredient.Numerator * ingredient.Denominator), createdAmount)
 		}
 	}
 
