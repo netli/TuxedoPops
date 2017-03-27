@@ -247,6 +247,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, fmt.Errorf("The source address %s must be different from dest address %s", unitizeArgs.SourceAddress, unitizeArgs.DestAddress)
 		}
 		fmt.Printf("\n\n\nOWNERSIGS for UNITIZE: (%v)\n\n", unitizeArgs.OwnerSigs)
+
 		unitizeEvent.Data = unitizeArgs.Data
 		unitizeEvent.DestAddress = unitizeArgs.DestAddress
 		unitizeEvent.PopcodePubKey = unitizeArgs.PopcodePubKey
@@ -412,11 +413,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		err = popcode.CombineOutputs(sources, combineArgs.OwnerSigs, combineArgs.PopcodePubKey, combineArgs.PopcodeSig,
 			int(combineArgs.Amount), combineArgs.Recipe, recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
-		combineEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
 		}
+		combineEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 
 		err = stub.PutState("Popcode:"+combineAddress, popcode.ToBytes())
 		if err != nil {
