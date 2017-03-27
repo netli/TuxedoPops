@@ -1,6 +1,6 @@
-#Popcode UTXOS
+# Popcode UTXOS
 
-##Introduction
+## Introduction
 TuxedoPops are proof of provenance codes.
 
 A popcode contains one or more kinds of values.
