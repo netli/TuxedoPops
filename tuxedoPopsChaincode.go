@@ -188,6 +188,10 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		transferEvent.Address = transferArgs.Address
 		transferEvent.Data = transferArgs.Data
 		transferEvent.Owners = transferArgs.Owners
+		if len(transferArgs.Owners) < int(transferArgs.Threshold) {
+			return nil, fmt.Errorf("threshold value (%d) is larger than number of owners (%d) for popcode output on address (%s)",
+				transferArgs.Threshold, len(transferArgs.Owners), transferArgs.Address)
+		}
 		transferEvent.Threshold = transferArgs.Threshold
 
 		popcodeKeyDigest := sha256.Sum256(transferArgs.PopcodePubKey)
@@ -213,15 +217,17 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			return nil, fmt.Errorf("Invalid Output index %d %s", transferArgs.Output, popcode.ToJSON())
 		}
 		transferEvent.SourceCounter = popcode.Outputs[transferArgs.Output].PrevCounter
-		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
-		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
-		transferEvent.Amount = int32(popcode.Outputs[transferArgs.Output].Amount)
-		transferEvent.Type = popcode.Outputs[transferArgs.Output].Type
 
+		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
 		if err != nil {
 			fmt.Printf(err.Error())
 			return nil, err
 		}
+
+		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
+		transferEvent.Amount = int32(popcode.Outputs[transferArgs.Output].Amount)
+		transferEvent.Type = popcode.Outputs[transferArgs.Output].Type
+
 		err = stub.PutState("Popcode:"+transferArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
