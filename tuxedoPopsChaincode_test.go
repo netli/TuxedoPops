@@ -39,6 +39,7 @@ import (
 // Owner2 key
 // Public Key: 02e138b25db2e74c54f8ca1a5cf79e2d1ed6af5bd1904646e7dc08b6d7b0d12bfd
 // Private Key: b18b7d3082b3ff9438a7bf9f5f019f8a52fb64647ea879548b3ca7b551eefd65
+
 func checkInit(t *testing.T, stub *shim.MockStub, args []string) {
 	_, err := stub.MockInit("1", "", args)
 	if err != nil {
@@ -67,7 +68,7 @@ func checkQuery(t *testing.T, stub *shim.MockStub, name string, value string) {
 		t.FailNow()
 	}
 	if string(bytes) != value {
-		fmt.Println("Query value for address (", name, ") was not", value, "as expected instead", string(bytes))
+		HandleError(t, fmt.Errorf("Query value for address (%s) wanted:\n(%s)\n\nGot:\n(%s)\n", name, value, string(bytes)))
 		t.FailNow()
 	}
 }
@@ -82,7 +83,8 @@ func mint(t *testing.T, stub *shim.MockStub, counterSeed string) {
 		fmt.Println(err)
 	}
 	createArgs.CreatorPubKey = pubKeyBytes
-	hexCreatorSig := generateCreateSig(counterSeed, 10, "Test Asset", "Test Data", "74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
+	hexCreatorSig := generateCreateSig(counterSeed, 10, "Test Asset", "Test Data",
+		"74ded2036e988fc56e3cff77a40c58239591e921", "7ff1ac3d9dfc56315ee610d0a15609d13c399cf9c92ba2e32e7b1d25ea5c9494")
 
 	createArgs.CreatorSig, err = hex.DecodeString(hexCreatorSig)
 	if err != nil {
@@ -127,8 +129,10 @@ func altMint(t *testing.T, stub *shim.MockStub, keys *keyInfo) {
 	}
 }
 
-//altMint1 does not hard code any parameters
-func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo, data string, createdType string, amount int) {
+//altMint1 does not hard code any parameters, taking them all as arguments
+func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo,
+	data string, createdType string, amount int) {
+
 	createArgs := TuxedoPopsTX.CreateTX{}
 	createArgs.Address = popcode.address
 	createArgs.Amount = int32(amount)
@@ -160,12 +164,15 @@ func altMint1(t *testing.T, stub *shim.MockStub, user *keyInfo, popcode *keyInfo
 	}
 }
 
-func generateCreateSig(CounterSeedStr string, amount int, assetType string, data string, addr string, privateKeyStr string) string {
+func generateCreateSig(CounterSeedStr string, amount int, assetType string,
+	data string, addr string, privateKeyStr string) string {
+
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
 
-	message := CounterSeedStr + ":" + addr + ":" + strconv.FormatInt(int64(amount), 10) + ":" + assetType + ":" + data
+	message := CounterSeedStr + ":" + addr + ":" +
+		strconv.FormatInt(int64(amount), 10) + ":" + assetType + ":" + data
 	fmt.Println("Signed Message")
 	fmt.Println(message)
 	messageBytes := sha256.Sum256([]byte(message))
@@ -181,8 +188,12 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 	ownerBytes, _ := hex.DecodeString("0278b76afbefb1e1185bc63ed1a17dd88634e0587491f03e9a8d2d25d9ab289ee7")
 	transferArgs.Owners = [][]byte{ownerBytes}
 	transferArgs.Output = int32(idx)
+	transferArgs.Threshold = 0
 	ownerHex := hex.EncodeToString(ownerBytes)
-	hexPossessSig := generatePossessSig(t, counterSeed, idx, "Test possess", ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+
+	hexPossessSig := generatePossessSig(t, counterSeed, idx, transferArgs.Threshold, "Test possess",
+		ownerHex, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+
 	var err error
 	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
@@ -190,24 +201,25 @@ func possess(t *testing.T, stub *shim.MockStub, counterSeed string, idx int) {
 
 	_, err = stub.MockInvoke("4", "transfer", []string{transferArgsBytesStr})
 	if err != nil {
-		fmt.Println(err)
+		HandleError(t, err)
+		t.FailNow()
 	}
 }
 
 func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
-	prevOwners []*keyInfo, newOwners []*keyInfo, idx int, data string) {
+	prevOwners []*keyInfo, newOwners []*keyInfo, idx int, data string, threshold int) {
 
 	transferArgs := TuxedoPopsTX.TransferOwners{}
 	transferArgs.Address = popcode.address
 	transferArgs.Data = data
 	transferArgs.PopcodePubKey, _ = hex.DecodeString(popcode.pubKeyStr)
-	// ownerBytes, _ := hex.DecodeString(newOwners[0].pubKeyStr)
-	// transferArgs.Owners = [][]byte{ownerBytes}
 	transferArgs.Owners = [][]byte{}
+	transferArgs.Threshold = int32(threshold)
 	for _, owner := range newOwners {
 		ownerBytes, err := hex.DecodeString(owner.pubKeyStr)
 		if err != nil {
-			HandleError(t, fmt.Errorf("error decoding public key string (%s) for user address (%s)\n", owner.pubKeyStr, owner.address))
+			HandleError(t, fmt.Errorf("error decoding public key string (%s) for user address (%s)\n",
+				owner.pubKeyStr, owner.address))
 			t.FailNow()
 		}
 		transferArgs.Owners = append(transferArgs.Owners, ownerBytes)
@@ -222,26 +234,24 @@ func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
 	for _, owner := range transferArgs.Owners {
 		newOwnersSlice = append(newOwnersSlice, hex.EncodeToString(owner))
 	}
-
 	newOwnersString := strings.Join(newOwnersSlice, ",")
-	fmt.Printf("\n\nlen prevOwners: (%d)\nprevOwners: (%v)\n", len(prevOwners), prevOwners)
 	transferArgs.PrevOwnerSigs = make([][]byte, len(prevOwners))
-
 	for i, owner := range prevOwners {
 		if owner != nil {
-			hexPrevOwnerSig := generatePossessSig(t, popcode.counter, idx, data, newOwnersString, owner.privKeyStr)
+			hexPrevOwnerSig := generatePossessSig(t, popcode.counter, idx,
+				transferArgs.Threshold, data, newOwnersString, owner.privKeyStr)
+
 			transferArgs.PrevOwnerSigs[i], err = hex.DecodeString(hexPrevOwnerSig)
 			if err != nil {
-				t.Errorf("error decoding hexPrevOwnerSig:\ni=(%d)\nowner = (%v)\nerr: (%v)\n", i, owner, err.Error())
+				t.Errorf("error decoding hexPrevOwnerSig:\ni=(%d)\nowner = (%v)\nerr: (%v)\n",
+					i, owner, err.Error())
 				t.FailNow()
 			}
 
 		}
 	}
-	fmt.Printf("\n\nlen prevOwnerSigs: (%d)\nprevOwnerSigs: (%v)\n", len(transferArgs.PrevOwnerSigs), transferArgs.PrevOwnerSigs)
-
 	transferArgs.Output = int32(idx)
-	hexPossessSig := generatePossessSig(t, popcode.counter, idx, data, newOwnersString, popcode.privKeyStr)
+	hexPossessSig := generatePossessSig(t, popcode.counter, idx, transferArgs.Threshold, data, newOwnersString, popcode.privKeyStr)
 	transferArgs.PopcodeSig, err = hex.DecodeString(hexPossessSig)
 	transferArgsBytes, _ := proto.Marshal(&transferArgs)
 	transferArgsBytesStr := hex.EncodeToString(transferArgsBytes)
@@ -253,12 +263,18 @@ func altPossess(t *testing.T, stub *shim.MockStub, popcode *keyInfo,
 	}
 }
 
-func generatePossessSig(t *testing.T, CounterSeedStr string, outputIdx int, data string, newOwnersHex string, privateKeyStr string) string {
+func generatePossessSig(t *testing.T, CounterSeedStr string, outputIdx int,
+	threshold int32, data string, newOwnersHex string, privateKeyStr string) string {
+
 	privKeyBytes, _ := hex.DecodeString(privateKeyStr)
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyBytes)
 
-	message := CounterSeedStr + ":" + strconv.FormatInt(int64(outputIdx), 10) + ":" + data
+	message := CounterSeedStr + ":" + strconv.FormatInt(int64(outputIdx), 10)
+	if threshold > 0 {
+		message += ":" + strconv.FormatInt(int64(threshold), 10)
+	}
+	message += ":" + data
 
 	newOwnersStrings := strings.Split(newOwnersHex, ",")
 	for _, owner := range newOwnersStrings {
@@ -293,9 +309,13 @@ func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	unitizeArgs.SourceAddress = "74ded2036e988fc56e3cff77a40c58239591e921"
 	unitizeArgs.SourceOutput = 0
 	unitizeArgs.PopcodePubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-	ownerSig := generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, unitizeArgs.Data, "7142c92e6eba38de08980eeb55b8c98bb19f8d417795adb56b6c4d25da6b26c5")
+	ownerSig := generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, unitizeArgs.Data,
+		"7142c92e6eba38de08980eeb55b8c98bb19f8d417795adb56b6c4d25da6b26c5")
+
 	unitizeArgs.OwnerSigs = [][]byte{ownerSig}
-	unitizeArgs.PopcodeSig = generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10}, unitizeArgs.Data, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+	unitizeArgs.PopcodeSig = generateUnitizeSig(counterSeed, unitizeArgs.DestAddress, 0, []int{10},
+		unitizeArgs.Data, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
+
 	unitizeArgsBytes, _ := proto.Marshal(&unitizeArgs)
 	unitizeArgsBytesStr := hex.EncodeToString(unitizeArgsBytes)
 
@@ -306,7 +326,9 @@ func unitize(t *testing.T, stub *shim.MockStub, counterSeed string) {
 	}
 }
 
-func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destPopcode *keyInfo, owners []*keyInfo, data string, amounts []int32, output int32) {
+func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo,
+	destPopcode *keyInfo, owners []*keyInfo, data string, amounts []int32, output int32) {
+
 	unitizeArgs := TuxedoPopsTX.Unitize{}
 	unitizeArgs.Data = data
 	unitizeArgs.DestAddress = destPopcode.address
@@ -328,11 +350,15 @@ func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destP
 
 	unitizeArgs.OwnerSigs = [][]byte{}
 	for _, owner := range owners {
-		ownerSig := generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, owner.privKeyStr)
+		ownerSig := generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress,
+			int(output), intAmounts, unitizeArgs.Data, owner.privKeyStr)
+
 		unitizeArgs.OwnerSigs = append(unitizeArgs.OwnerSigs, ownerSig)
 	}
 
-	unitizeArgs.PopcodeSig = generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress, int(output), intAmounts, unitizeArgs.Data, sourcePopcode.privKeyStr)
+	unitizeArgs.PopcodeSig = generateUnitizeSig(sourcePopcode.counter, unitizeArgs.DestAddress,
+		int(output), intAmounts, unitizeArgs.Data, sourcePopcode.privKeyStr)
+
 	unitizeArgsBytes, _ := proto.Marshal(&unitizeArgs)
 	unitizeArgsBytesStr := hex.EncodeToString(unitizeArgsBytes)
 
@@ -343,13 +369,12 @@ func altUnitize(t *testing.T, stub *shim.MockStub, sourcePopcode *keyInfo, destP
 	}
 }
 
-func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int, amounts []int, data string, privateKeyStr string) []byte {
+func generateUnitizeSig(CounterSeedStr string, destAddr string, outputIdx int,
+	amounts []int, data string, privateKeyStr string) []byte {
+
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
-
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
-
 	message := CounterSeedStr + ":" + destAddr + ":" + data + ":" + strconv.FormatInt(int64(outputIdx), 10)
-
 	for _, amount := range amounts {
 		message += ":" + strconv.FormatInt(int64(amount), 10)
 	}
@@ -378,42 +403,9 @@ func generateRecipeSig(recipeName string, createdType string,
 	return hex.EncodeToString(sig.Serialize())
 }
 
-// func registerRecipe(t *testing.T, stub *shim.MockStub) {
-// 	recipeArgs := TuxedoPopsTX.Recipe{}
-// 	recipeArgs.RecipeName = "Water Vapor Recipe"
-// 	recipeArgs.CreatedType = "Vapor"
-// 	recipeArgs.CreatorPubKey, _ = hex.DecodeString("02ca4a8c7dc5090f924cde2264af240d76f6d58a5d2d15c8c5f59d95c70bd9e4dc")
-// 	ingredient := make([]*TuxedoPopsTX.Ingredient, 1)
-// 	ingredient[0] = new(TuxedoPopsTX.Ingredient)
-// 	ingredient[0].Denominator = 1
-// 	ingredient[0].Numerator = 1
-// 	ingredient[0].Type = "Water"
+func altRecipe(t *testing.T, stub *shim.MockStub, recipeName string, createdType string,
+	creator *keyInfo, ingredients []*TuxedoPopsTX.Ingredient) {
 
-// 	recipeArgs.Ingredients = ingredient
-
-// 	sigHex := generateRecipeSig(recipeArgs.RecipeName, recipeArgs.CreatedType,
-// 		recipeArgs.Ingredients, "94d7fe7308a452fdf019a0424d9c48ba9b66bdbca565c6fa3b1bf9c646ebac20")
-
-// 	var err error
-// 	recipeArgs.CreatorSig, err = hex.DecodeString(sigHex)
-// 	if err != nil {
-// 		fmt.Printf("error decoding creator signature in register recipe. ERR: (%v)", err.Error())
-// 		t.FailNow()
-// 	}
-// 	recipeArgsBytes, err := proto.Marshal(&recipeArgs)
-// 	if err != nil {
-// 		fmt.Printf("error marshalling recipeArgs in registerRecipe. ERR: (%s)\n", err.Error())
-// 		t.FailNow()
-// 	}
-// 	recipeArgsBytesStr := hex.EncodeToString(recipeArgsBytes)
-// 	_, err = stub.MockInvoke("4", "recipe", []string{recipeArgsBytesStr})
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		t.Errorf("error invoking recipe: (%v)", err.Error())
-// 	}
-// }
-
-func altRecipe(t *testing.T, stub *shim.MockStub, recipeName string, createdType string, creator *keyInfo, ingredients []*TuxedoPopsTX.Ingredient) {
 	recipeArgs := TuxedoPopsTX.Recipe{}
 	recipeArgs.RecipeName = recipeName
 	recipeArgs.CreatedType = createdType
@@ -480,11 +472,11 @@ func registerRecipe(t *testing.T, stub *shim.MockStub) {
 	}
 }
 
-func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int, data string, privateKeyStr string) []byte {
+func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int, data string,
+	privateKeyStr string) []byte {
+
 	privKeyByte, _ := hex.DecodeString(privateKeyStr)
-
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyByte)
-
 	message := counter
 	message += ":" + combine.Recipe
 	for _, source := range combine.GetSources() {
@@ -492,7 +484,6 @@ func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int
 		message += ":" + strconv.FormatInt(int64(source.Amount()), 10)
 	}
 	message += ":" + strconv.FormatInt(int64(amount), 10) + ":" + data
-
 	fmt.Printf("\n\ncombine message: (%s)\n\n", message)
 	messageBytes := sha256.Sum256([]byte(message))
 	fmt.Println(message)
@@ -502,7 +493,9 @@ func generateCombineSig(counter string, combine TuxedoPopsTX.Combine, amount int
 	return sig.Serialize()
 }
 
-func altCombine(t *testing.T, stub *shim.MockStub, popcode *keyInfo, sources []*TuxedoPopsTX.CombineSources, amount int32, recipe string, creator *keyInfo, owners []*keyInfo, data string) {
+func altCombine(t *testing.T, stub *shim.MockStub, popcode *keyInfo, sources []*TuxedoPopsTX.CombineSources,
+	amount int32, recipe string, creator *keyInfo, owners []*keyInfo, data string) {
+
 	var err error
 	combineArgs := TuxedoPopsTX.Combine{}
 	combineArgs.Address = popcode.address
@@ -521,12 +514,16 @@ func altCombine(t *testing.T, stub *shim.MockStub, popcode *keyInfo, sources []*
 		t.Errorf("error retrieving counterseed: (%v)", err.Error())
 		t.FailNow()
 	}
-	combineArgs.CreatorSig = generateCombineSig(popcode.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, creator.privKeyStr)
+	combineArgs.CreatorSig = generateCombineSig(popcode.counter, combineArgs,
+		int(combineArgs.Amount), combineArgs.Data, creator.privKeyStr)
+
 	combineArgs.OwnerSigs = make([][]byte, 0)
 
 	for _, owner := range owners {
 		if owner != nil {
-			ownerSig := generateCombineSig(popcode.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, owner.privKeyStr)
+			ownerSig := generateCombineSig(popcode.counter, combineArgs,
+				int(combineArgs.Amount), combineArgs.Data, owner.privKeyStr)
+
 			combineArgs.OwnerSigs = append(combineArgs.OwnerSigs, ownerSig)
 		}
 	}
@@ -535,7 +532,8 @@ func altCombine(t *testing.T, stub *shim.MockStub, popcode *keyInfo, sources []*
 		HandleError(t, err)
 		t.FailNow()
 	}
-	combineArgs.PopcodeSig = generateCombineSig(popcode.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, popcode.privKeyStr)
+	combineArgs.PopcodeSig = generateCombineSig(popcode.counter, combineArgs,
+		int(combineArgs.Amount), combineArgs.Data, popcode.privKeyStr)
 
 	combineArgsBytes, _ := proto.Marshal(&combineArgs)
 	combineArgsBytesStr := hex.EncodeToString(combineArgsBytes)
@@ -595,12 +593,13 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 		t.FailNow()
 	}
 
-	combineArgs.CreatorSig = generateCombineSig(keys.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey)
+	combineArgs.CreatorSig = generateCombineSig(keys.counter, combineArgs,
+		int(combineArgs.Amount), combineArgs.Data, creatorPrivKey)
+
 	combineArgs.OwnerSigs = make([][]byte, 0)
 	combineArgs.PopcodePubKey, _ = hex.DecodeString(keys.pubKeyStr)
-	combineArgs.PopcodeSig = generateCombineSig(keys.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr)
-
-	fmt.Printf("\n\n\ncombineArgs.sources.FirstSource: (%v, %v)\n\n", combineArgs.Sources[0].SourceAmount, combineArgs.Sources[0].SourceOutput)
+	combineArgs.PopcodeSig = generateCombineSig(keys.counter, combineArgs,
+		int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr)
 
 	combineArgsBytes, _ := proto.Marshal(&combineArgs)
 	combineArgsBytesStr := hex.EncodeToString(combineArgsBytes)
@@ -612,109 +611,7 @@ func checkCombine(t *testing.T, stub *shim.MockStub) {
 	}
 }
 
-// func checkCombine(t *testing.T, stub *shim.MockStub) {
-// 	txCache := txcache.TXCache{}
-// 	txCacheBytes, err := stub.GetState("TxCache")
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	proto.Unmarshal(txCacheBytes, &txCache)
-
-// 	//create a new set of keys
-// 	keys := new(keyInfo)
-// 	keys.privKeyStr, err = newPrivateKeyString()
-// 	if err != nil {
-// 		fmt.Printf("error generating private key: %v", err)
-// 	}
-// 	keys.pubKeyStr, err = newPubKeyString(keys.privKeyStr)
-// 	if err != nil {
-// 		fmt.Printf("error generating public key: %v", err)
-// 	}
-// 	keys.address = newAddress(keys.pubKeyStr)
-// 	keys.counter, err = getCounter(stub, keys)
-// 	if err != nil {
-// 		t.Errorf("error retrieving counterseed: (%v)", err.Error())
-// 	}
-
-// 	//mint transaction with keys and counterseed
-// 	altMint(t, stub, keys)
-
-// 	keys.counter, err = getCounter(stub, keys)
-// 	if err != nil {
-// 		t.Errorf("error retrieving counterseed: (%v)", err.Error())
-// 	}
-
-// 	// registerRecipe(t, stub)
-
-// 	//perform combination
-// 	combineArgs := TuxedoPopsTX.Combine{}
-// 	combineArgs.Address = keys.address
-// 	//Sources
-// 	combineArgs.Sources = make([]*TuxedoPopsTX.CombineSources, 1)
-// 	combineArgs.Sources[0] = new(TuxedoPopsTX.CombineSources)
-// 	combineArgs.Sources[0].SourceAmount = 10
-// 	combineArgs.Sources[0].SourceOutput = 0
-
-// 	combineArgs.Amount = 10
-// 	combineArgs.Recipe = "test recipe"
-// 	combineArgs.Data = "test data"
-
-// 	creatorPrivKey, _ := newPrivateKeyString()
-// 	creatorPubKeyStr, _ := newPubKeyString(creatorPrivKey)
-
-// 	combineArgs.CreatorPubKey, _ = hex.DecodeString(creatorPubKeyStr)
-// 	if err != nil {
-// 		fmt.Printf("error generating private key: %v", err.Error())
-// 	}
-
-// 	combineArgs.CreatorSig, err = hex.DecodeString(generateCombineSig(keys.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, creatorPrivKey))
-// 	if err != nil {
-// 		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
-// 		t.FailNow()
-// 	}
-
-// 	combineArgs.OwnerSigs = make([][]byte, 0)
-// 	combineArgs.PopcodePubKey, _ = hex.DecodeString(keys.pubKeyStr)
-// 	combineArgs.PopcodeSig, err = hex.DecodeString(generateCombineSig(keys.counter, combineArgs, int(combineArgs.Amount), combineArgs.Data, keys.privKeyStr))
-// 	if err != nil {
-// 		fmt.Printf("Error decoding creator sig string in checkCombine. ERR: (%s)", err.Error())
-// 		t.FailNow()
-// 	}
-
-// 	combineArgsBytes, _ := proto.Marshal(&combineArgs)
-// 	combineArgsBytesStr := hex.EncodeToString(combineArgsBytes)
-
-// 	_, err = stub.MockInvoke("4", "combine", []string{combineArgsBytesStr})
-// 	if err != nil {
-// 		fmt.Printf("\nError invoking combine in checkCombine. ERR: (%s)", err.Error())
-// 		t.FailNow()
-// 	}
-// }
-
 /*
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	//To create new private and public keys
 	privKeyString, err := newPrivateKeyString()
 	if err != nil {
@@ -832,7 +729,8 @@ func getBalance(t *testing.T, stub *shim.MockStub, keys *keyInfo) finalBalanceJS
 	for _, output := range balance.Outputs {
 		var tmp outputJSON
 		if err := json.Unmarshal([]byte(output), &tmp); err != nil {
-			HandleError(t, fmt.Errorf("Error unmarshalling balance output (%v) into outputJSON struct\nERR: (%s)", output, err.Error()))
+			HandleError(t, fmt.Errorf("Error unmarshalling balance output (%v) into outputJSON struct\nERR: (%s)",
+				output, err.Error()))
 		}
 		balanceResult.Outputs = append(balanceResult.Outputs, tmp)
 	}
@@ -840,7 +738,8 @@ func getBalance(t *testing.T, stub *shim.MockStub, keys *keyInfo) finalBalanceJS
 }
 
 /*
-	checkCounterSeedChange creates 150 popcodes and checks that the counterseed changes at the appropriate time. Can be called in a loop.
+	checkCounterSeedChange creates 150 popcodes and checks that the counterseed changes at the appropriate time.
+	Can be called in a loop.
 */
 func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 	originalCounterseed, err := stub.GetState("CounterSeed")
@@ -883,15 +782,22 @@ func checkCounterSeedChange(t *testing.T, stub *shim.MockStub) {
 		}
 		proto.Unmarshal(txCacheBytes, &txCache)
 
-		fmt.Printf("\n\nCOUNTERSEEDSTRING: (%s)\ni: (%d)\nTXCACHELEN: (%d)\n\n\n", hex.EncodeToString(counterseed), i, len(txCache.Cache))
+		fmt.Printf("\n\nCOUNTERSEEDSTRING: (%s)\ni: (%d)\nTXCACHELEN: (%d)\n\n\n",
+			hex.EncodeToString(counterseed), i, len(txCache.Cache))
 
 		//check for correct counterSeed value
 		if (i < 101) && (hex.EncodeToString(counterseed) != hex.EncodeToString(originalCounterseed)) {
-			t.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n", hex.EncodeToString(counterseed), hex.EncodeToString(originalCounterseed))
+			HandleError(t, fmt.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n",
+				hex.EncodeToString(counterseed), hex.EncodeToString(originalCounterseed)))
+
 			t.FailNow()
 		}
-		if expected := sha256.Sum256(originalCounterseed); i > 101 && (hex.EncodeToString(counterseed) != hex.EncodeToString(expected[:])) {
-			t.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n", hex.EncodeToString(counterseed), hex.EncodeToString(expected[:]))
+		if expected := sha256.Sum256(originalCounterseed); i > 101 &&
+			(hex.EncodeToString(counterseed) != hex.EncodeToString(expected[:])) {
+
+			HandleError(t, fmt.Errorf("\nCounterseed got:\n(%s)\nwant:\n(%s)\n",
+				hex.EncodeToString(counterseed), hex.EncodeToString(expected[:])))
+
 			t.FailNow()
 		}
 	}
@@ -1081,11 +987,9 @@ type possessInfo struct {
 
 func HandleError(t *testing.T, err error) (b bool) {
 	if err != nil {
-		/*pc would print out the package name and function in which error occurs if uncommented*/
-		/*pc,*/ _, fn, line, _ := runtime.Caller(1)
+		_, fn, line, _ := runtime.Caller(1)
 		re := regexp.MustCompile("[^/]+$")
-
-		t.Errorf("\x1b[32m\n[ERROR] in %s\tat line: %d\n%v\x1b[0m\n\n" /*re.FindAllString(runtime.FuncForPC(pc).Name(), -1), */, re.FindAllString(fn, -1)[0], line, err)
+		t.Errorf("\x1b[32m\n[ERROR] in %s\tat line: %d\n%v\x1b[0m\n\n", re.FindAllString(fn, -1)[0], line, err)
 		b = true
 	}
 	return
@@ -1133,8 +1037,8 @@ func TestPopcodeChaincode(t *testing.T) {
 	checkCombine(t, stub)
 
 	//new testing suite below:
-
 	fmt.Printf("\n\n\nSTARTING NEW TESTING SUITE\n\n\n")
+
 	users, err := generateUsers(stub)
 	if err != nil {
 		t.Errorf("error generating users: (%v)\n", err.Error())
@@ -1158,76 +1062,160 @@ func TestPopcodeChaincode(t *testing.T) {
 
 	altMint1(t, stub, users.user1, popcodes.popcode1, data, createdType, amount)
 	balance = getBalance(t, stub, popcodes.popcode1)
-	fmt.Printf("\n\n\nbalance on popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n", balance.Address, balance.Counter, balance.Outputs)
+	fmt.Printf("\n\n\nbalance on popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n",
+		balance.Address, balance.Counter, balance.Outputs)
+
 	if prevCounter == balance.Counter {
-		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to mint. Counter: (%s)", balance.Address, balance.Counter))
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to mint. Counter: (%s)",
+			balance.Address, balance.Counter))
 		t.FailNow()
 	}
 	if len(balance.Outputs) != prevNumberOfOutputs+1 {
-		HandleError(t, fmt.Errorf("number of outputs of popcode with address (%s) did not increase by one after create transaction", popcodes.popcode1))
+		HandleError(t, fmt.Errorf("number of outputs of popcode with address (%s)"+
+			" did not increase by one after create transaction", popcodes.popcode1))
 		t.FailNow()
 	}
 
-	//POSSESS
-	//perform first possess
-	//output index used for possess
+	/*
+		POSSESS
+		perform initial possess
+		one new owner
+	*/
 	output := 0
 	prevCounter = balance.Counter
 	prevOwners := make([]*keyInfo, 1)
-	newOwners := make([]*keyInfo, 1)
-	newOwners[0] = users.user1
+	newOwners := make([]*keyInfo, 0)
+	newOwners = append(newOwners, users.user1)
 	data = "data"
-	altPossess(t, stub, popcodes.popcode1, prevOwners, newOwners, output, data)
+	threshold := len(newOwners)
+	altPossess(t, stub, popcodes.popcode1, prevOwners, newOwners, output, data, threshold)
 	balance = getBalance(t, stub, popcodes.popcode1)
 	if prevCounter == balance.Counter {
-		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)", balance.Address, balance.Counter))
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)",
+			balance.Address, balance.Counter))
 	}
 	if len(balance.Outputs[output].Owners) != len(newOwners) {
-		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\nnumber of owners got (%d). Want (%d)\noutputs: (%v)",
+		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\n"+
+			"number of owners got (%d). Want (%d)\noutputs: (%v)",
 			balance.Address, len(balance.Outputs[output].Owners), len(newOwners), balance.Outputs))
 	}
 	for i, owner := range newOwners {
 		if balance.Outputs[output].Owners[i] != owner.pubKeyStr {
-			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n", i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
+			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n",
+				i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
 		}
 	}
 
-	//possess an owned popcode
-	//multiple new owners
-	//check counterseed change, number of owners, owner change
-	//TODO check threshold funcitonality
+	/*
+		possess an owned popcode
+		multiple new owners
+		check counterseed change, number of owners, owner change
+		TODO check threshold functionality
+	*/
 	prevCounter = balance.Counter
 	prevOwners[0] = newOwners[0]
-	newOwners[0] = users.user2
-	newOwners = append(newOwners, users.user3)
+	newOwners = []*keyInfo{users.user1, users.user2, users.user3, users.user4, users.user5, users.user6}
 	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
 	data = "data"
 	output = 0
-	altPossess(t, stub, popcodes.popcode1, prevOwners, newOwners, output, data)
+	threshold = len(newOwners)
+	altPossess(t, stub, popcodes.popcode1, prevOwners, newOwners, output, data, threshold)
 	balance = getBalance(t, stub, popcodes.popcode1)
 	if prevCounter == balance.Counter {
-		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)", balance.Address, balance.Counter))
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)",
+			balance.Address, balance.Counter))
 	}
 	if len(balance.Outputs[output].Owners) != len(newOwners) {
-		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\nnumber of owners got (%d). Want (%d)\noutputs: (%v)",
+		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\n"+
+			"number of owners got (%d). Want (%d)\noutputs: (%v)",
 			balance.Address, len(balance.Outputs[output].Owners), len(newOwners), balance.Outputs))
 	}
 	for i, owner := range newOwners {
 		if balance.Outputs[output].Owners[i] != owner.pubKeyStr {
-			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n", i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
+			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n",
+				i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
 		}
 	}
 
-	//UNITIZE
-	//check counterseed change, change in number of outputs, and change in quantity of units in ouputs
+	/*
+		possess and change threshold to 1
+		check threshold change
+	*/
+	prevCounter = balance.Counter
 	owners := newOwners
+	newOwners = []*keyInfo{users.user1, users.user2}
+	data = "data"
+	output = 0
+	threshold = 1
+	altPossess(t, stub, popcodes.popcode1, owners, newOwners, output, data, threshold)
+	balance = getBalance(t, stub, popcodes.popcode1)
+	if prevCounter == balance.Counter {
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)",
+			balance.Address, balance.Counter))
+	}
+	if len(balance.Outputs[output].Owners) != len(newOwners) {
+		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\n"+
+			"number of owners got (%d). Want (%d)\noutputs: (%v)",
+			balance.Address, len(balance.Outputs[output].Owners), len(newOwners), balance.Outputs))
+	}
+	for i, owner := range newOwners {
+		if balance.Outputs[output].Owners[i] != owner.pubKeyStr {
+			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n",
+				i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
+		}
+	}
+	if balance.Outputs[output].Threshold != int64(threshold) {
+		HandleError(t, fmt.Errorf("threshold did not change as expected\nGot (%d)\nWant (%d)", balance.Outputs[output].Threshold, threshold))
+	}
+	fmt.Printf("\n\nNew BALANCE: (%v)\n\n\n", balance)
+
+	/*
+		check threshold functionality
+		possess using only one of two owner sigs
+	*/
+	prevCounter = balance.Counter
+	prevOwners = []*keyInfo{users.user1}
+	newOwners[0] = users.user2
+	newOwners[1] = users.user3
+	fmt.Printf("\n\n\nprevOwners: (%v)\nnewOwners: (%v)\n\n\n\n", prevOwners[0], newOwners[0])
+	data = "data"
+	output = 0
+	threshold = len(newOwners)
+	altPossess(t, stub, popcodes.popcode1, prevOwners, newOwners, output, data, threshold)
+	balance = getBalance(t, stub, popcodes.popcode1)
+	if prevCounter == balance.Counter {
+		HandleError(t, fmt.Errorf("counter of address (%s) did not change after call to possess. Counter: (%s)",
+			balance.Address, balance.Counter))
+	}
+	if len(balance.Outputs[output].Owners) != len(newOwners) {
+		HandleError(t, fmt.Errorf("after possess on unowned popcode with address: (%s)\n"+
+			"number of owners got (%d). Want (%d)\noutputs: (%v)",
+			balance.Address, len(balance.Outputs[output].Owners), len(newOwners), balance.Outputs))
+	}
+	for i, owner := range newOwners {
+		if balance.Outputs[output].Owners[i] != owner.pubKeyStr {
+			HandleError(t, fmt.Errorf("incorrect owner at index (%d). Got (%s). Want (%s)\n",
+				i, balance.Outputs[output].Owners[i], owner.pubKeyStr))
+		}
+	}
+
+	/*
+		UNITIZE
+		check the following:
+			counterseed change,
+			change in number of outputs, and
+			change in quantity of units in ouputs
+	*/
+	owners = newOwners
 	sourceBalance := getBalance(t, stub, popcodes.popcode1)
 	//unitize owned output into two outputs in a different popcode
-	fmt.Printf("\n\n\nbefore unitize: balance on source popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n\n", sourceBalance.Address, sourceBalance.Counter, sourceBalance.Outputs)
+	fmt.Printf("\n\n\nbefore unitize: balance on source popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n\n",
+		sourceBalance.Address, sourceBalance.Counter, sourceBalance.Outputs)
 	// prevNumberOfOutputs := len(balance["Outputs"].([]interface{}))
 	sourcePrevCounter := sourceBalance.Counter
 	destBalance := getBalance(t, stub, popcodes.popcode2)
-	fmt.Printf("\n\n\nbefore unitize: balance on destination popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n\n", destBalance.Address, destBalance.Counter, destBalance.Outputs)
+	fmt.Printf("\n\n\nbefore unitize: balance on destination popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n\n",
+		destBalance.Address, destBalance.Counter, destBalance.Outputs)
 
 	destPrevCounter := destBalance.Counter
 	destAmounts := []int32{50, 50}
@@ -1236,32 +1224,67 @@ func TestPopcodeChaincode(t *testing.T) {
 	altUnitize(t, stub, popcodes.popcode1, popcodes.popcode2, owners, data, destAmounts, int32(output))
 	sourceBalance = getBalance(t, stub, popcodes.popcode1)
 	if sourcePrevCounter != sourceBalance.Counter {
-		HandleError(t, fmt.Errorf("counter of source popcode (address: %s) changed after call to unitize. Counter: (%s)", sourceBalance.Address, sourceBalance.Counter))
+		HandleError(t, fmt.Errorf("counter of source popcode (address: %s) changed after call to unitize. Counter: (%s)",
+			sourceBalance.Address, sourceBalance.Counter))
 	}
 	destBalance = getBalance(t, stub, popcodes.popcode2)
 	if destPrevCounter == destBalance.Counter {
-		HandleError(t, fmt.Errorf("counter of destination popcode( (address: %s) did not change after call to unitize. Counter: (%s)", destBalance.Address, destBalance.Counter))
+		HandleError(t, fmt.Errorf("counter of destination popcode (address: %s) "+
+			"did not change after call to unitize. Counter: (%s)", destBalance.Address, destBalance.Counter))
 	}
 
-	fmt.Printf("\n\n\nafter unitize: balance on source popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n", sourceBalance.Address, sourceBalance.Counter, sourceBalance.Outputs)
-	fmt.Printf("\n\n\nafter unitize: balance on destination popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n", destBalance.Address, destBalance.Counter, destBalance.Outputs)
+	fmt.Printf("\n\n\nafter unitize: balance on source popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n",
+		sourceBalance.Address, sourceBalance.Counter, sourceBalance.Outputs)
+	fmt.Printf("\n\n\nafter unitize: balance on destination popcode (%v)\ncounter: (%v)\noutputs: (%v)\n\n",
+		destBalance.Address, destBalance.Counter, destBalance.Outputs)
 
-	//RECIPE
+	/*
+		RECIPE
+	*/
 	ingredients := []*TuxedoPopsTX.Ingredient{}
 	ingredient := new(TuxedoPopsTX.Ingredient)
 	ingredient.Denominator = 1
 	ingredient.Numerator = 1
-	ingredient.Type = "Water Vapor"
-	altRecipe(t, stub, "Water Vapor Recipe", "Water Vapor", users.user1, ingredients)
+	/*
+		TODO:
+		figure out why it doesn't matter that ingredient.Type is " ".
+		Why does the combination still work?
+	*/
+	ingredient.Type = " "
+	recipeName := "Water Vapor Recipe"
+	createdType = "Water Vapor"
+	altRecipe(t, stub, recipeName, createdType, users.user1, ingredients)
 
-	//COMBINE
+	/*
+		COMBINE
+		combination transaction with two owners
+	*/
+	popcode := popcodes.popcode2
 	sources := []*TuxedoPopsTX.CombineSources{}
 	source := new(TuxedoPopsTX.CombineSources)
 	source.SourceOutput = 0
 	source.SourceAmount = 1
 	sources = append(sources, source)
-	fmt.Printf("SOURCES: (%v)\n", sources)
-	altCombine(t, stub, popcodes.popcode2, sources, 1, "Water Vapor Recipe", users.user2, owners, "data")
+	creator := users.user2
+	data = "data"
+	amount = 1
+	// recipeName = "Water Vapor Recipe"
+
+	popcodeBalance := getBalance(t, stub, popcodes.popcode2)
+	fmt.Printf("\n\npopcode balance: (%v)\n\n", popcodeBalance)
+
+	prevCounter = popcodeBalance.Counter
+	prevNumberOfOutputs = len(popcodeBalance.Outputs)
+	altCombine(t, stub, popcode, sources, int32(amount), recipeName, creator, owners, data)
+	popcodeBalance = getBalance(t, stub, popcodes.popcode2)
+	if popcodeBalance.Counter == prevCounter {
+		HandleError(t, fmt.Errorf("Counter of popcode (%s) did not change after call to combine\n", popcode.address))
+	}
+	if len(popcodeBalance.Outputs) == prevNumberOfOutputs {
+		HandleError(t, fmt.Errorf("Number of outputs of popcode (%d) did not change after call to combine"+
+			"\npopcode balance: (%v)", len(popcodeBalance.Outputs), popcodeBalance))
+	}
+	fmt.Printf("popcode balance: (%v)", popcodeBalance)
 }
 
 // func altRecipe(t *testing.T, stub *shim.MockStub, recipeName string, createdType string, creator *keyInfo, ingredients []*TuxedoPopsTX.Ingredient) {
