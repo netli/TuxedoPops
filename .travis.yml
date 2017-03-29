@@ -7,4 +7,4 @@ install:
   - "go build"
 script: 
   - "go test"
-go_import_path: github.com/skuchain/TuxedoPopsß
+go_import_path: github.com/skuchain/TuxedoPops
