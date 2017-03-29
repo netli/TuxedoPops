@@ -11,7 +11,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-	txcache "github.com/skuchain/tuxpops2/TXCache"
+	txcache "github.com/skuchain/TuxedoPops/TXCache"
 )
 
 /*
