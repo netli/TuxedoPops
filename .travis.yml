@@ -1,13 +1,10 @@
 language: go
 go: 
- - 1.8
- - release
- - tip
+  - 1.8
+  - release
+  - tip
+install: 
+  - "go build"
+script: 
+  - "go test"
 
- install:
- - go build
-
-script:
- - go test 
-
- 
