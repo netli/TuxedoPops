@@ -4,5 +4,10 @@ go:
  - release
  - tip
 
+ install:
+ - go build
+
 script:
  - go test 
+
+ 
