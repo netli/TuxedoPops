@@ -362,7 +362,7 @@ func (p *Pop) SetOwner(idx int, threshold int, data string, newOwnersBytes [][]b
 	p.Outputs[idx].PrevCounter = make([]byte, len(p.Counter))
 	copy(p.Outputs[idx].PrevCounter, p.Counter)
 
-	if threshold > 0 {
+	if threshold >= 0 {
 		p.Outputs[idx].Threshold = threshold
 	} else {
 		p.Outputs[idx].Threshold = len(newOwners)
