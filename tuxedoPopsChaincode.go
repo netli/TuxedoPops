@@ -557,8 +557,8 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 	fmt.Printf("query_type: %s", args[0])
 	switch args[0] {
 	case "balance":
-		if len(args) != 1 {
-			return shim.Error("No argument specified")
+		if len(args) != 2 {
+			return shim.Error(fmt.Sprintf("Must have 2 arguments to query[balance]. Received %d", len(args)))
 		}
 		counterseed, err := stub.GetState("CounterSeed")
 
@@ -588,8 +588,8 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 		popcode.FromBytes(popcodeBytes)
 		return shim.Success(popcode.ToJSON())
 	case "recipe":
-		if len(args) != 1 {
-			return shim.Error("no argument specified\n")
+		if len(args) != 2 {
+			return shim.Error(fmt.Sprintf("Must have 2 arguments to query[recipe]. Received %d", len(args)))
 		}
 
 		recipe := TuxedoPopsStore.Recipe{}
