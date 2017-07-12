@@ -583,11 +583,11 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Address = args[0]
 			popcode.Counter = hashedCounterSeed
-			fmt.Printf(fmt.Sprintf("%s", popcode.ToJSON()))
+			fmt.Printf("The popcode JSON is %s", popcode.ToJSON())
 			return shim.Success(popcode.ToJSON())
 		}
 		popcode.FromBytes(popcodeBytes)
-		fmt.Printf(fmt.Sprintf("%s", popcode.ToJSON()))
+		fmt.Printf("The popcode JSON is %s", popcode.ToJSON())
 		return shim.Success(popcode.ToJSON())
 	case "recipe":
 		if len(args) != 2 {
