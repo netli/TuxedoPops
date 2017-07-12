@@ -136,11 +136,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respon
 			popcode.Address = hex.EncodeToString(addrBytes)
 
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
-			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 			if err != nil {
 				fmt.Printf(err.Error())
 				return shim.Error(err.Error())
 			}
+			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 
 			antiReplayDigest := sha256.Sum256(createArgs.CreatorSig) // WARNING Assumes the Creator sig is not malleable without private key. Need to check if all maleability vectors are checked
 
