@@ -15,14 +15,14 @@ import (
 	"fmt"
 
 	"crypto/sha256"
-
-	"errors"
-
 	"strconv"
+
+	"github.com/hyperledger/fabric/core/chaincode/shim"
+	pb "github.com/hyperledger/fabric/protos/peer"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric/core/chaincode/shim"
+
 	"github.com/skuchain/TuxedoPops/Pop"
 	txcache "github.com/skuchain/TuxedoPops/TXCache"
 	"github.com/skuchain/TuxedoPops/TuxedoPopsStore"
@@ -36,47 +36,57 @@ import (
 type tuxedoPopsChaincode struct {
 }
 
-func (t *tuxedoPopsChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+func (t *tuxedoPopsChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
+
+	_, args := stub.GetFunctionAndParameters()
+
 	if len(args) < 1 {
 		fmt.Printf("Invalid Init Arg\n")
-		return nil, fmt.Errorf("Invalid Init Arg\n")
+		return shim.Error(fmt.Sprintf("Invalid Init Arg\n"))
 	}
 
 	counterSeed := sha256.Sum256([]byte(args[0]))
-
 	err := stub.PutState("CounterSeed", counterSeed[:])
 
 	if err != nil {
 		fmt.Printf("Error initializing CounterSeed\n")
-		return nil, fmt.Errorf("Error initializing CounterSeed (%s)\n", args[0])
+		return shim.Error(fmt.Sprintf("Error initializing CounterSeed (%s)\n", args[0]))
 	}
 
-	return nil, nil
+	return shim.Success(nil)
 }
 
-func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+
+	function, args := stub.GetFunctionAndParameters()
+
+	if function == "query" {
+		return t.query(stub, args)
+	}
+
 	if len(args) == 0 {
 		fmt.Println("Insufficient arguments found")
-		return nil, fmt.Errorf("Insufficient arguments found\n")
+		return shim.Error("Insufficient arguments found\n")
 	}
 
 	argsBytes, err := hex.DecodeString(args[0])
 	if err != nil {
 		fmt.Printf("Invalid argument (%v) expected hex\n", args[0])
-		return nil, fmt.Errorf("Invalid argument (%v) expected hex\n", args[0])
+		return shim.Error(fmt.Sprintf("Invalid argument (%v) expected hex\n", args[0]))
 	}
 
 	counterseed, err := stub.GetState("CounterSeed")
 	if err != nil {
 		fmt.Printf("error getting counterseed state\n")
-		return nil, fmt.Errorf("error getting counterseed state\n")
+		return shim.Error("error getting counterseed state\n")
 	}
+
 	txCache := txcache.TXCache{}
 	txCacheBytes, err := stub.GetState("TxCache")
 
 	if err != nil {
 		fmt.Println(err)
-		return nil, fmt.Errorf("error getting TxCache state\n")
+		return shim.Error(fmt.Sprintf("error getting TxCache state: %s\n", err.Error()))
 	}
 
 	if len(txCacheBytes) > 0 {
@@ -94,7 +104,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &createArgs)
 		if err != nil {
 			fmt.Printf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error())
-			return nil, fmt.Errorf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error())
+			return shim.Error(fmt.Sprintf("Invalid argument expected CreateTX protocol buffer ERR:(%s)\n", err.Error()))
 		}
 
 		createEvent.Address = createArgs.Address
@@ -107,14 +117,14 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
-			return nil, errors.New("Could not get Popcode State")
+			return shim.Error("Could not get Popcode State")
 		}
 		popcode := Pop.Pop{}
 
 		if len(popcodebytes) == 0 {
 			addrBytes, err := hex.DecodeString(createArgs.Address)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid popcode address %s ", createArgs.Address)
+				return shim.Error(fmt.Sprintf("Invalid popcode address %s ", createArgs.Address))
 			}
 			hasher := sha256.New()
 			hasher.Write(counterseed)
@@ -129,14 +139,14 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 			if err != nil {
 				fmt.Printf(err.Error())
-				return nil, err
+				return shim.Error(err.Error())
 			}
 
 			antiReplayDigest := sha256.Sum256(createArgs.CreatorSig) // WARNING Assumes the Creator sig is not malleable without private key. Need to check if all maleability vectors are checked
 
 			if txCache.Cache[string(antiReplayDigest[:])] {
 				fmt.Printf("Already recieved transaction")
-				return nil, fmt.Errorf("Already recieved transaction")
+				return shim.Error("Already recieved transaction")
 			}
 			if len(txCache.Cache) > 100 {
 				nextseed := sha256.Sum256(counterseed)
@@ -148,13 +158,13 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			err := popcode.FromBytes(popcodebytes)
 			if err != nil {
 				fmt.Println("Popcode Deserialization error")
-				return nil, errors.New("Popcode Deserialization Failure")
+				return shim.Error("Popcode Deserialization Failure")
 			}
 			createEvent.SourceCounter = popcode.Counter
 			err = popcode.CreateOutput(int(createArgs.Amount), createArgs.Type, createArgs.Data, createArgs.CreatorPubKey, createArgs.CreatorSig)
 			if err != nil {
 				fmt.Printf(err.Error())
-				return nil, err
+				return shim.Error(err.Error())
 			}
 			createEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 
@@ -166,12 +176,12 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = stub.PutState("Popcode:"+createArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		createEventBytes, err := proto.Marshal(&createEvent)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		stub.SetEvent("create", createEventBytes)
 
@@ -182,15 +192,15 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &transferArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected TransferOwners protocol buffer")
-			return nil, fmt.Errorf("Invalid argument expected TransferOwners protocol buffer %s", err.Error())
+			return shim.Error(fmt.Sprintf("Invalid argument expected TransferOwners protocol buffer %s", err.Error()))
 		}
 
 		transferEvent.Address = transferArgs.Address
 		transferEvent.Data = transferArgs.Data
 		transferEvent.Owners = transferArgs.Owners
 		if len(transferArgs.Owners) < int(transferArgs.Threshold) {
-			return nil, fmt.Errorf("threshold value (%d) is larger than number of owners (%d) for popcode output on address (%s)",
-				transferArgs.Threshold, len(transferArgs.Owners), transferArgs.Address)
+			return shim.Error(fmt.Sprintf("threshold value (%d) is larger than number of owners (%d) for popcode output on address (%s)",
+				transferArgs.Threshold, len(transferArgs.Owners), transferArgs.Address))
 		}
 		transferEvent.Threshold = transferArgs.Threshold
 
@@ -198,30 +208,30 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		transferAddress := hex.EncodeToString(popcodeKeyDigest[:20])
 
 		if transferAddress != transferArgs.Address {
-			return nil, fmt.Errorf("Public key %s does not derive address of %s", transferArgs.PopcodePubKey, transferArgs.Address)
+			return shim.Error(fmt.Sprintf("Public key %s does not derive address of %s", transferArgs.PopcodePubKey, transferArgs.Address))
 		}
 
 		popcodebytes, err := stub.GetState("Popcode:" + transferArgs.Address)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
-			return nil, errors.New("Could not get Popcode State")
+			return shim.Error("Could not get Popcode State")
 		}
 		if len(popcodebytes) == 0 {
 			fmt.Println("No value found in popcode")
-			return nil, errors.New("No value found in popcode")
+			return shim.Error("No value found in popcode")
 		}
 		popcode := Pop.Pop{}
 		popcode.FromBytes(popcodebytes)
 
 		if transferArgs.Output < 0 || int(transferArgs.Output) >= len(popcode.Outputs) {
-			return nil, fmt.Errorf("Invalid Output index %d %s", transferArgs.Output, popcode.ToJSON())
+			shim.Error(fmt.Sprintf("Invalid Output index %d %s", transferArgs.Output, popcode.ToJSON()))
 		}
 		transferEvent.SourceCounter = popcode.Outputs[transferArgs.Output].PrevCounter
 
 		err = popcode.SetOwner(int(transferArgs.Output), int(transferArgs.Threshold), transferArgs.Data, transferArgs.Owners, transferArgs.PrevOwnerSigs, transferArgs.PopcodePubKey, transferArgs.PopcodeSig)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 
 		transferEvent.DestCounter = popcode.Outputs[transferArgs.Output].PrevCounter
@@ -231,12 +241,12 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = stub.PutState("Popcode:"+transferArgs.Address, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		transferEventBytes, err := proto.Marshal(&transferEvent)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		stub.SetEvent("transfer", transferEventBytes)
 
@@ -246,11 +256,11 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &unitizeArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Unitize protocol buffer")
-			return nil, fmt.Errorf("Invalid argument expected Unitize protocol buffer %s", err.Error())
+			return shim.Error(fmt.Sprintf("Invalid argument expected Unitize protocol buffer %s", err.Error()))
 		}
 
 		if unitizeArgs.SourceAddress == unitizeArgs.DestAddress {
-			return nil, fmt.Errorf("The source address %s must be different from dest address %s", unitizeArgs.SourceAddress, unitizeArgs.DestAddress)
+			return shim.Error(fmt.Sprintf("The source address %s must be different from dest address %s", unitizeArgs.SourceAddress, unitizeArgs.DestAddress))
 		}
 		fmt.Printf("\n\n\nOWNERSIGS for UNITIZE: (%v)\n\n", unitizeArgs.OwnerSigs)
 
@@ -263,38 +273,38 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		popcodeKeyDigest := sha256.Sum256(unitizeArgs.PopcodePubKey)
 		sourceAddress := hex.EncodeToString(popcodeKeyDigest[:20])
 		if unitizeArgs.SourceAddress != sourceAddress {
-			return nil, fmt.Errorf("Public key %s does not derive address of %s", unitizeArgs.PopcodePubKey, unitizeArgs.SourceAddress)
+			return shim.Error(fmt.Sprintf("Public key %s does not derive address of %s", unitizeArgs.PopcodePubKey, unitizeArgs.SourceAddress))
 		}
 		sourcePopcodeBytes, err := stub.GetState("Popcode:" + sourceAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
-			return nil, errors.New("Could not get Popcode State")
+			return shim.Error(fmt.Sprintf("Could not get Popcode State"))
 		}
 		if len(sourcePopcodeBytes) == 0 {
 			fmt.Println("No value found in popcode")
-			return nil, errors.New("No value found in popcode")
+			return shim.Error(fmt.Sprintf("No value found in popcode"))
 		}
 		sourcePopcode := Pop.Pop{}
 		err = sourcePopcode.FromBytes(sourcePopcodeBytes)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
-			return nil, errors.New("Could not get Popcode State")
+			return shim.Error(fmt.Sprintf("Could not get Popcode State"))
 		}
 
 		if unitizeArgs.SourceOutput < 0 || int(unitizeArgs.SourceOutput) >= len(sourcePopcode.Outputs) {
-			return nil, fmt.Errorf("Invalid Output index %d %s", unitizeArgs.SourceOutput, sourcePopcode.ToJSON())
+			return shim.Error(fmt.Sprintf("Invalid Output index %d %s", unitizeArgs.SourceOutput, sourcePopcode.ToJSON()))
 		}
 		unitizeEvent.SourceCounter = sourcePopcode.Outputs[unitizeArgs.SourceOutput].PrevCounter
 		destAddress := unitizeArgs.DestAddress
 		destPopcodeBytes, err := stub.GetState("Popcode:" + destAddress)
 		if err != nil {
-			return nil, errors.New("Could not get Popcode State")
+			return shim.Error("Could not get Popcode State")
 		}
 		destPopcode := Pop.Pop{}
 		if len(destPopcodeBytes) == 0 {
 			destAddressBytes, err := hex.DecodeString(destAddress)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid address %s", destAddress)
+				return shim.Error(fmt.Sprintf("Invalid address %s", destAddress))
 			}
 			hasher := sha256.New()
 			hasher.Write(sourcePopcode.Counter)
@@ -307,7 +317,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			err = destPopcode.FromBytes(destPopcodeBytes)
 			if err != nil {
 				fmt.Println("Dest Popcode Deserialization error")
-				return nil, errors.New("Dest Popcode Deserialization Failure")
+				return shim.Error("Dest Popcode Deserialization Failure")
 			}
 		}
 		convertedAmounts := make([]int, len(unitizeArgs.DestAmounts))
@@ -318,7 +328,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			&destPopcode, unitizeArgs.OwnerSigs, unitizeArgs.PopcodePubKey, unitizeArgs.PopcodeSig)
 		if err != nil {
 			fmt.Printf("Unitize error: %s", err.Error())
-			return nil, fmt.Errorf("Unitize error: %s", err.Error())
+			return shim.Error(fmt.Sprintf("Unitize error: %s", err.Error()))
 		}
 
 		// The idea here is to harvest the created Counter values for the destinations via revserse interation through the number of events coordinated
@@ -333,17 +343,17 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = stub.PutState("Popcode:"+sourceAddress, sourcePopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		err = stub.PutState("Popcode:"+destAddress, destPopcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		unitizeEventBytes, err := proto.Marshal(&unitizeEvent)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		stub.SetEvent("unitize", unitizeEventBytes)
 
@@ -355,7 +365,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &combineArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Combine protocol buffer")
-			return nil, fmt.Errorf("Invalid argument expected Combine protocol buffer %s", err.Error())
+			return shim.Error(fmt.Sprintf("Invalid argument expected Combine protocol buffer %s", err.Error()))
 		}
 		combineEvent.Address = combineArgs.Address
 		combineEvent.Amount = combineArgs.Amount
@@ -373,18 +383,18 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		popcodeKeyDigest := sha256.Sum256(combineArgs.PopcodePubKey)
 		combineAddress := hex.EncodeToString(popcodeKeyDigest[:20])
 		if combineAddress != combineArgs.Address {
-			return nil, fmt.Errorf("Public key %s does not derive address of %s", combineArgs.PopcodePubKey, combineArgs.Address)
+			return shim.Error(fmt.Sprintf("Public key %s does not derive address of %s", combineArgs.PopcodePubKey, combineArgs.Address))
 		}
 
 		popcode := Pop.Pop{}
 		popcodeBytes, err := stub.GetState("Popcode:" + combineAddress)
 		if err != nil {
 			fmt.Println("Could not get Popcode State")
-			return nil, errors.New("Could not get Popcode State")
+			shim.Error("Could not get Popcode State")
 		}
 		if len(popcodeBytes) == 0 {
 			fmt.Println("No value found in popcode")
-			return nil, errors.New("No value found in popcode")
+			shim.Error("No value found in popcode")
 		}
 		popcode.FromBytes(popcodeBytes)
 
@@ -392,16 +402,16 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
-			return nil, errors.New("Could not get Recipe State")
+			shim.Error("Could not get Recipe State")
 		}
 		if len(recipeBytes) == 0 {
 			fmt.Printf("Recipe %s not registered", combineArgs.Recipe)
-			return nil, fmt.Errorf("Recipe %s is not registered", combineArgs.Recipe)
+			return shim.Error(fmt.Sprintf("Recipe %s is not registered", combineArgs.Recipe))
 		}
 		recipe := TuxedoPopsStore.Recipe{}
 		err = proto.Unmarshal(recipeBytes, &recipe)
 		if err != nil {
-			return nil, fmt.Errorf("Could not deserialize Recipe %s", combineArgs.Recipe)
+			return shim.Error(fmt.Sprintf("Could not deserialize Recipe %s", combineArgs.Recipe))
 		}
 
 		sources := make([]Pop.SourceOutput, len(combineArgs.Sources))
@@ -412,7 +422,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			if v.Idx() < len(popcode.Outputs) {
 				combineEvent.SourceCounters = append(combineEvent.SourceCounters, popcode.Outputs[v.Idx()].PrevCounter)
 			} else {
-				return nil, fmt.Errorf("Invalid output index in combine %d", v.Idx())
+				return shim.Error(fmt.Sprintf("Invalid output index in combine %d", v.Idx()))
 			}
 
 		}
@@ -421,19 +431,19 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 			int(combineArgs.Amount), combineArgs.Recipe, recipe, combineArgs.Data, combineArgs.CreatorPubKey, combineArgs.CreatorSig)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		combineEvent.DestCounter = popcode.Outputs[len(popcode.Outputs)-1].PrevCounter
 
 		err = stub.PutState("Popcode:"+combineAddress, popcode.ToBytes())
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		combineEventBytes, err := proto.Marshal(&combineEvent)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		stub.SetEvent("combine", combineEventBytes)
 
@@ -442,29 +452,29 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		err = proto.Unmarshal(argsBytes, &recipeArgs)
 		if err != nil {
 			fmt.Println("Invalid argument expected Recipe protocol buffer")
-			return nil, fmt.Errorf("Invalid argument expected Recipe protocol buffer %s", err.Error())
+			return shim.Error(fmt.Sprintf("Invalid argument expected Recipe protocol buffer %s", err.Error()))
 		}
 		recipeBytes, err := stub.GetState("Recipe:" + recipeArgs.RecipeName)
 		if err != nil {
 			fmt.Println("Could not get Recipe State")
-			return nil, fmt.Errorf("Could not get Recipe (%s) state\n", recipeArgs.RecipeName)
+			return shim.Error(fmt.Sprintf("Could not get Recipe (%s) state\n", recipeArgs.RecipeName))
 		}
 
 		//if recipe already exists
 		if len(recipeBytes) != 0 {
 			fmt.Printf("Recipe (%s) already registered\n", recipeArgs.RecipeName)
-			return nil, fmt.Errorf("Recipe (%s) already registered\n", recipeArgs.RecipeName)
+			return shim.Error(fmt.Sprintf("Recipe (%s) already registered\n", recipeArgs.RecipeName))
 		}
 
 		creatorPubKey, err := btcec.ParsePubKey(recipeArgs.CreatorPubKey, btcec.S256())
 		if err != nil {
-			return nil, fmt.Errorf("Could not deserialize Creator Pub Key (%v)", recipeArgs.CreatorPubKey)
+			return shim.Error(fmt.Sprintf("Could not deserialize Creator Pub Key (%v)", recipeArgs.CreatorPubKey))
 		}
 
 		creatorSig, err := btcec.ParseDERSignature(recipeArgs.CreatorSig, btcec.S256())
 
 		if err != nil {
-			return nil, fmt.Errorf("Could not deserialize Creator Signature (%v)", recipeArgs.CreatorSig)
+			return shim.Error(fmt.Sprintf("Could not deserialize Creator Signature (%v)", recipeArgs.CreatorSig))
 		}
 
 		message := recipeArgs.RecipeName + ":" + recipeArgs.CreatedType
@@ -476,7 +486,7 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		success := creatorSig.Verify(messageBytes[:], creatorPubKey)
 		if !success {
 			// fmt.Printf("Invalid Creator Signature (%+v)\n", creatorSig)
-			return nil, fmt.Errorf("Invalid Creator Signature (%+v)\n", creatorSig)
+			return shim.Error(fmt.Sprintf("Invalid Creator Signature (%+v)\n", creatorSig))
 		}
 
 		recStore := TuxedoPopsStore.Recipe{}
@@ -492,36 +502,36 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface, function 
 		recStoreBytes, err := proto.Marshal(&recStore)
 		if err != nil {
 			fmt.Printf("Recipe Store Serialization error\n")
-			return nil, fmt.Errorf("Recipe Store Serialization Error\n")
+			return shim.Error(fmt.Sprintf("Recipe Store Serialization Error\n"))
 		}
 		fmt.Printf("PUTTING RECIPE (%s) TO LEDGER\n", recipeArgs.RecipeName)
 		err = stub.PutState("Recipe:"+recipeArgs.RecipeName, recStoreBytes)
 		if err != nil {
 			fmt.Printf("error putting recipe state to ledger: (%s)\n", err.Error())
-			return nil, fmt.Errorf("error putting recipe state to ledger: (%s)\n", err.Error())
+			return shim.Error(fmt.Sprintf("error putting recipe state to ledger: (%s)\n", err.Error()))
 		}
 	default:
 		fmt.Printf("Invalid function type (%s)", function)
-		return nil, fmt.Errorf("Invalid function type (%s)", function)
+		return shim.Error(fmt.Sprintf("Invalid function type (%s)", function))
 	}
 	txCacheBytes, err = proto.Marshal(&txCache)
 	if err != nil {
 		fmt.Printf("error marshalling txCache in invoke: (%v)\n", err.Error())
-		return nil, fmt.Errorf("error marshalling txCache in invoke: (%v)\n", err.Error())
+		return shim.Error(fmt.Sprintf("error marshalling txCache in invoke: (%v)\n", err.Error()))
 	}
 	if len(txCacheBytes) > 0 {
 		err = stub.PutState("TxCache", txCacheBytes)
 	}
 	if err != nil {
 		fmt.Printf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
-		return nil, fmt.Errorf("error putting txCache to ledger in invoke: (%v)\n", err.Error())
+		return shim.Error(fmt.Sprintf("error putting txCache to ledger in invoke: (%v)\n", err.Error()))
 	}
 	err = stub.PutState("CounterSeed", counterseed)
 	if err != nil {
 		fmt.Printf("Error putting counterseed to ledger in invoke: (%v)\n", err.Error())
-		return nil, fmt.Errorf("Error putting counterseed to ledger in invoke: (%v)\n", err.Error())
+		return shim.Error(fmt.Sprintf("Error putting counterseed to ledger in invoke: (%v)\n", err.Error()))
 	}
-	return nil, nil
+	return shim.Success(nil)
 }
 
 func recipeToJSON(createdType string, ingredients []*TuxedoPopsStore.Ingredient, creatorPubKey []byte) ([]byte, error) {
@@ -542,18 +552,19 @@ func recipeToJSON(createdType string, ingredients []*TuxedoPopsStore.Ingredient,
 	return jsonstring, nil
 }
 
-func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	fmt.Printf("function: %s", function)
-	switch function {
+func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	fmt.Printf("query_type: %s", args[0])
+	switch args[0] {
 	case "balance":
 		if len(args) != 1 {
-			return nil, fmt.Errorf("No argument specified")
+			return shim.Error("No argument specified")
 		}
 		counterseed, err := stub.GetState("CounterSeed")
 
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 
 		address := args[0]
@@ -561,7 +572,7 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 		popcodeBytes, err := stub.GetState("Popcode:" + address)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
 		if len(popcodeBytes) == 0 {
 			addrBytes, _ := hex.DecodeString(address)
@@ -572,13 +583,13 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Address = args[0]
 			popcode.Counter = hashedCounterSeed
-			return popcode.ToJSON(), nil
+			return shim.Success(popcode.ToJSON())
 		}
 		popcode.FromBytes(popcodeBytes)
-		return popcode.ToJSON(), nil
+		return shim.Success(popcode.ToJSON())
 	case "recipe":
 		if len(args) != 1 {
-			return nil, fmt.Errorf("no argument specified\n")
+			return shim.Error("no argument specified\n")
 		}
 
 		recipe := TuxedoPopsStore.Recipe{}
@@ -587,27 +598,27 @@ func (t *tuxedoPopsChaincode) Query(stub shim.ChaincodeStubInterface, function s
 		recipeBytes, err := stub.GetState("Recipe:" + recipeName)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, fmt.Errorf("ERR: (%v)\n", err.Error())
+			return shim.Error(fmt.Sprintf("ERR: (%v)\n", err.Error()))
 		}
 
 		if len(recipeBytes) == 0 {
-			return nil, fmt.Errorf("recipe (%s) does not exist\n", recipeName)
+			return shim.Error(fmt.Sprintf("recipe (%s) does not exist\n", recipeName))
 		}
 
 		err = proto.Unmarshal(recipeBytes, &recipe)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, fmt.Errorf("ERR: (%v)", err.Error())
+			return shim.Error(fmt.Sprintf("ERR: (%v)", err.Error()))
 		}
 
 		jsonBytes, err := recipeToJSON(recipe.CreatedType, recipe.Ingredients, recipe.Creator)
 		if err != nil {
 			fmt.Printf(err.Error())
-			return nil, err
+			return shim.Error(err.Error())
 		}
-		return jsonBytes, nil
+		return shim.Success(jsonBytes)
 	}
-	return nil, nil
+	return shim.Success(nil)
 }
 
 func main() {
