@@ -567,7 +567,7 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 			return shim.Error(err.Error())
 		}
 
-		address := args[0]
+		address := args[1]
 		popcode := Pop.Pop{}
 		popcodeBytes, err := stub.GetState("Popcode:" + address)
 		if err != nil {
@@ -581,7 +581,7 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 			hasher.Write(addrBytes)
 			hashedCounterSeed := []byte{}
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
-			popcode.Address = args[0]
+			popcode.Address = args[1]
 			popcode.Counter = hashedCounterSeed
 			fmt.Printf("The popcode JSON is %s", popcode.ToJSON())
 			return shim.Success(popcode.ToJSON())
@@ -595,7 +595,7 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 		}
 
 		recipe := TuxedoPopsStore.Recipe{}
-		recipeName := args[0]
+		recipeName := args[1]
 
 		recipeBytes, err := stub.GetState("Recipe:" + recipeName)
 		if err != nil {
