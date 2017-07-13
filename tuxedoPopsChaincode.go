@@ -60,6 +60,8 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respon
 
 	function, args := stub.GetFunctionAndParameters()
 
+	fmt.Printf("In Invoke functio is : %s and args[0] is : %s \n", function, args[0])
+
 	if function == "query" {
 		return t.query(stub, args)
 	}
@@ -204,8 +206,14 @@ func (t *tuxedoPopsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respon
 		}
 		transferEvent.Threshold = transferArgs.Threshold
 
+		fmt.Printf("transferEvent.Address: %s\n", transferEvent.Address)
+		fmt.Printf("transferEvent.Data: %s\n", transferEvent.Data)
+
 		popcodeKeyDigest := sha256.Sum256(transferArgs.PopcodePubKey)
 		transferAddress := hex.EncodeToString(popcodeKeyDigest[:20])
+
+		fmt.Printf("popcodeKeyDigest: %s\n", popcodeKeyDigest)
+		fmt.Printf("transferAddress: %s\n", transferAddress)
 
 		if transferAddress != transferArgs.Address {
 			return shim.Error(fmt.Sprintf("Public key %s does not derive address of %s", transferArgs.PopcodePubKey, transferArgs.Address))
@@ -554,7 +562,8 @@ func recipeToJSON(createdType string, ingredients []*TuxedoPopsStore.Ingredient,
 
 func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
-	fmt.Printf("query_type: %s", args[0])
+	fmt.Printf("query_type: %s\n", args[0])
+
 	switch args[0] {
 	case "balance":
 		if len(args) != 2 {
@@ -583,12 +592,13 @@ func (t *tuxedoPopsChaincode) query(stub shim.ChaincodeStubInterface, args []str
 			hashedCounterSeed = hasher.Sum(hashedCounterSeed)
 			popcode.Address = args[1]
 			popcode.Counter = hashedCounterSeed
-			fmt.Printf("The popcode JSON is %s", popcode.ToJSON())
+			fmt.Printf("The popcode JSON is : \n%s\n", popcode.ToJSON())
 			return shim.Success(popcode.ToJSON())
 		}
 		popcode.FromBytes(popcodeBytes)
-		fmt.Printf("The popcode JSON is %s", popcode.ToJSON())
+		fmt.Printf("The popcode JSON is : \n%s\n", popcode.ToJSON())
 		return shim.Success(popcode.ToJSON())
+
 	case "recipe":
 		if len(args) != 2 {
 			return shim.Error(fmt.Sprintf("Must have 2 arguments to query[recipe]. Received %d", len(args)))
